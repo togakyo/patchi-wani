@@ -3,7 +3,10 @@
 // Main game screen. Manages the HUD, game arena,
 // start overlay, and game-over overlay via GameController.
 
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../game/engine.dart';
 import '../game/game_controller.dart';
 import '../scratch/block_model.dart';
@@ -20,8 +23,37 @@ class _GameScreenState extends State<GameScreen> {
   final _controller = GameController();
   BlockProgram _program = BlockProgram.defaultProgram();
 
+  final _player = AudioPlayer();
+  bool _hasHitSound = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHitSound();
+  }
+
+  Future<void> _loadHitSound() async {
+    try {
+      // Preload assets/audio/hit.mp3 — replace with any sound file you like.
+      await _player.setSource(AssetSource('audio/hit.mp3'));
+      setState(() => _hasHitSound = true);
+    } catch (_) {
+      // File not found — will fall back to system click sound.
+    }
+  }
+
+  Future<void> _playHit() async {
+    if (_hasHitSound) {
+      await _player.seek(Duration.zero);
+      unawaited(_player.resume());
+    } else {
+      unawaited(SystemSound.play(SystemSoundType.click));
+    }
+  }
+
   @override
   void dispose() {
+    _player.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -49,7 +81,7 @@ class _GameScreenState extends State<GameScreen> {
           return Stack(
             children: [
               // ── Game arena ────────────────────────
-              _GameArena(controller: _controller),
+              _GameArena(controller: _controller, onHitSound: _playHit),
 
               // ── HUD ───────────────────────────────
               if (_controller.phase == GamePhase.playing)
@@ -82,7 +114,8 @@ class _GameScreenState extends State<GameScreen> {
 // ─────────────────────────────────────────────
 class _GameArena extends StatelessWidget {
   final GameController controller;
-  const _GameArena({required this.controller});
+  final VoidCallback onHitSound;
+  const _GameArena({required this.controller, required this.onHitSound});
 
   @override
   Widget build(BuildContext context) {
@@ -101,7 +134,10 @@ class _GameArena extends StatelessWidget {
                   left: controller.targetPos!.x - controller.targetSize / 2,
                   top:  controller.targetPos!.y - controller.targetSize / 2,
                   child: GestureDetector(
-                    onTap: () => controller.onHit(size),
+                    onTap: () {
+                      controller.onHit(size);
+                      onHitSound();
+                    },
                     child: _Target(size: controller.targetSize),
                   ),
                 ),
