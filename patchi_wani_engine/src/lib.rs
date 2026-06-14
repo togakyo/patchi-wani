@@ -110,6 +110,9 @@ where
 /// Initialise the engine.
 /// `rule_json`: JSON string of GameRule (pass NULL to use defaults).
 /// Returns 0 on success, -1 on JSON parse error.
+///
+/// # Safety
+/// `rule_json` must be a valid null-terminated C string, or NULL.
 #[no_mangle]
 pub unsafe extern "C" fn engine_init(rule_json: *const c_char) -> c_int {
     let rule = if rule_json.is_null() {
@@ -213,6 +216,9 @@ pub extern "C" fn engine_get_rule_json() -> *mut c_char {
 }
 
 /// Frees a pointer returned by `engine_get_rule_json`.
+///
+/// # Safety
+/// `ptr` must be a pointer previously returned by `engine_get_rule_json`, or NULL.
 #[no_mangle]
 pub unsafe extern "C" fn engine_free_string(ptr: *mut c_char) {
     if !ptr.is_null() {
