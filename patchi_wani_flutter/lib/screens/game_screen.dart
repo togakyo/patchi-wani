@@ -82,29 +82,37 @@ class _GameScreenState extends State<GameScreen> {
       body: ListenableBuilder(
         listenable: _controller,
         builder: (context, _) {
-          return Stack(
+          return Column(
             children: [
-              // ── Game arena ────────────────────────
-              _GameArena(controller: _controller, onHitSound: _playHit),
-
-              // ── HUD ───────────────────────────────
+              // ── HUD (playing only) ────────────────
               if (_controller.phase == GamePhase.playing)
                 _HUD(controller: _controller),
 
-              // ── Start overlay ─────────────────────
-              if (_controller.phase == GamePhase.idle)
-                _StartScreen(
-                  onStart: _startGame,
-                  onEdit:  _openEditor,
-                ),
+              // ── Game arena + overlays ─────────────
+              // Arena is Expanded so its LayoutBuilder gives the correct
+              // height excluding the HUD — targets never spawn behind it.
+              Expanded(
+                child: Stack(
+                  children: [
+                    _GameArena(controller: _controller, onHitSound: _playHit),
 
-              // ── Game-over overlay ─────────────────
-              if (_controller.phase == GamePhase.gameOver)
-                _GameOverScreen(
-                  controller: _controller,
-                  onRestart: _startGame,
-                  onEdit:    _openEditor,
+                    // ── Start overlay ─────────────────
+                    if (_controller.phase == GamePhase.idle)
+                      _StartScreen(
+                        onStart: _startGame,
+                        onEdit:  _openEditor,
+                      ),
+
+                    // ── Game-over overlay ─────────────
+                    if (_controller.phase == GamePhase.gameOver)
+                      _GameOverScreen(
+                        controller: _controller,
+                        onRestart: _startGame,
+                        onEdit:    _openEditor,
+                      ),
+                  ],
                 ),
+              ),
             ],
           );
         },
