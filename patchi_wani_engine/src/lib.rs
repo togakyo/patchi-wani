@@ -226,17 +226,23 @@ pub unsafe extern "C" fn engine_free_string(ptr: *mut c_char) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
 
-    fn setup() {
+    // Serialize tests that share the global engine singleton.
+    static TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    fn setup() -> std::sync::MutexGuard<'static, ()> {
+        let guard = TEST_LOCK.lock().unwrap();
         let rule = GameRule::default();
         let json = serde_json::to_string(&rule).unwrap();
         let cstr = CString::new(json).unwrap();
-        assert_eq!(engine_init(cstr.as_ptr()), 0);
+        assert_eq!(unsafe { engine_init(cstr.as_ptr()) }, 0);
+        guard
     }
 
     #[test]
     fn test_initial_state() {
-        setup();
+        let _guard = setup();
         assert_eq!(engine_get_phase(), 0);  // Idle
         assert_eq!(engine_get_score(), 0);
         assert_eq!(engine_get_time_left(), 60);
@@ -244,7 +250,7 @@ mod tests {
 
     #[test]
     fn test_game_flow() {
-        setup();
+        let _guard = setup();
         engine_start();
         assert_eq!(engine_get_phase(), 1);  // Playing
 
@@ -262,7 +268,7 @@ mod tests {
 
     #[test]
     fn test_difficulty_scaling() {
-        setup();
+        let _guard = setup();
         engine_start();
 
         // easy: score 0–9
@@ -282,11 +288,11 @@ mod tests {
 
     #[test]
     fn test_rule_json_roundtrip() {
-        setup();
+        let _guard = setup();
         let ptr = engine_get_rule_json();
         assert!(!ptr.is_null());
         let json = unsafe { CStr::from_ptr(ptr).to_str().unwrap().to_owned() };
-        engine_free_string(ptr);
+        unsafe { engine_free_string(ptr) };
         let rule: GameRule = serde_json::from_str(&json).unwrap();
         assert_eq!(rule.duration_secs, 60);
     }
