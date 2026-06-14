@@ -78,6 +78,17 @@ cd patchi_wani_flutter && flutter run
 
 For full build instructions (Android APK, iOS) see **[SETUP.md](./SETUP.md)**.
 
+### UI development in Chrome (no Rust build required)
+
+A pure-Dart stub replaces the Rust engine on web, so you can iterate on the UI without a simulator or device:
+
+```bash
+cd patchi_wani_flutter
+flutter run -d chrome
+```
+
+> Game logic runs as a Dart simulation — scoring, difficulty, and target size all work, but behaviour may differ slightly from the native Rust engine.
+
 ---
 
 ## Repository layout
