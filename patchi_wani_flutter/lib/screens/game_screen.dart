@@ -4,6 +4,7 @@
 // start overlay, and game-over overlay via GameController.
 
 import 'package:flutter/material.dart';
+import '../game/engine.dart';
 import '../game/game_controller.dart';
 import '../scratch/block_model.dart';
 import 'block_editor_screen.dart';
