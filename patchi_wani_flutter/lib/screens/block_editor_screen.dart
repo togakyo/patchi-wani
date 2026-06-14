@@ -98,9 +98,8 @@ class _BlockEditorScreenState extends State<BlockEditorScreen> {
           ),
           child: ReorderableListView.builder(
             padding: const EdgeInsets.all(12),
-            onReorder: (oldIndex, newIndex) {
+            onReorderItem: (oldIndex, newIndex) {
               setState(() {
-                if (newIndex > oldIndex) newIndex--;
                 final item = _blocks.removeAt(oldIndex);
                 _blocks.insert(newIndex, item);
               });

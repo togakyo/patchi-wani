@@ -130,7 +130,7 @@ class _Target extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFF3B30).withOpacity(0.5),
+            color: const Color(0xFFFF3B30).withValues(alpha: 0.5),
             blurRadius: 16,
             spreadRadius: 2,
           ),
@@ -158,7 +158,7 @@ class _HUD extends StatelessWidget {
       top: 0, left: 0, right: 0,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        color: Colors.black.withOpacity(0.7),
+        color: Colors.black.withValues(alpha: 0.7),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -166,10 +166,10 @@ class _HUD extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFCC00).withOpacity(0.15),
+                color: const Color(0xFFFFCC00).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                    color: const Color(0xFFFFCC00).withOpacity(0.35)),
+                    color: const Color(0xFFFFCC00).withValues(alpha: 0.35)),
               ),
               child: Text(controller.difficultyLabel,
                   style: const TextStyle(
@@ -304,7 +304,7 @@ class _OverlayScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black.withOpacity(0.95),
+      color: Colors.black.withValues(alpha: 0.95),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -331,7 +331,7 @@ class _BigButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(40),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFFF3B30).withOpacity(0.35),
+              color: const Color(0xFFFF3B30).withValues(alpha: 0.35),
               blurRadius: 12, spreadRadius: 2,
             ),
           ],

@@ -111,7 +111,7 @@ where
 /// `rule_json`: JSON string of GameRule (pass NULL to use defaults).
 /// Returns 0 on success, -1 on JSON parse error.
 #[no_mangle]
-pub extern "C" fn engine_init(rule_json: *const c_char) -> c_int {
+pub unsafe extern "C" fn engine_init(rule_json: *const c_char) -> c_int {
     let rule = if rule_json.is_null() {
         GameRule::default()
     } else {
@@ -214,7 +214,7 @@ pub extern "C" fn engine_get_rule_json() -> *mut c_char {
 
 /// Frees a pointer returned by `engine_get_rule_json`.
 #[no_mangle]
-pub extern "C" fn engine_free_string(ptr: *mut c_char) {
+pub unsafe extern "C" fn engine_free_string(ptr: *mut c_char) {
     if !ptr.is_null() {
         unsafe { drop(CString::from_raw(ptr)) };
     }
