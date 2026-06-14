@@ -31,7 +31,7 @@ cd ../patchi_wani_flutter && flutter test
 
 # 5. Commit and push
 git add .
-git commit -m "fix: correct target spawn interval"
+git commit -m "[FIX] Correct target spawn interval"
 git push origin fix/target-spawn-timing
 ```
 
@@ -39,7 +39,7 @@ git push origin fix/target-spawn-timing
 
 - Rust: run `cargo fmt` and `cargo clippy` before committing
 - Dart: run `dart format` before committing
-- Commit messages should follow [Conventional Commits](https://www.conventionalcommits.org/) (`fix:`, `feat:`, `docs:`, etc.)
+- Commit messages must follow the project tag convention — see **[COMMIT_CONVENTION.md](./COMMIT_CONVENTION.md)**
 
 ## Important notes
 
