@@ -37,7 +37,7 @@ git push origin fix/target-spawn-timing
 
 ## Code style
 
-- Rust: run `cargo fmt` and `cargo clippy` before committing
+- Rust: run `cargo fmt` and `cargo clippy` from `patchi_wani_engine/` before committing
 - Dart: run `dart format` before committing
 - Commit messages must follow the project tag convention — see **[COMMIT_CONVENTION.md](./COMMIT_CONVENTION.md)**
 
