@@ -118,31 +118,76 @@ Output: `build/app/outputs/flutter-apk/app-release.apk`
 
 ## Step 5 — iOS build (macOS only)
 
-### 5-1. Add the iOS target
+### 5-1. Install Xcode and add Rust targets
+
+Install Xcode from the App Store, then:
 
 ```bash
-rustup target add aarch64-apple-ios
+sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+sudo xcodebuild -runFirstLaunch
+
+rustup target add aarch64-apple-ios        # physical device
+rustup target add aarch64-apple-ios-sim    # simulator (Apple Silicon Mac)
 ```
 
-### 5-2. Build the Rust static library for iOS
+### 5-2. Generate iOS platform files
+
+```bash
+cd patchi_wani_flutter
+flutter create . --platforms ios
+```
+
+### 5-3. Build the Rust static library
+
+**For simulator:**
 
 ```bash
 cd patchi_wani_engine
+cargo build --release --target aarch64-apple-ios-sim
+
+mkdir -p ../patchi_wani_flutter/ios/Frameworks
+cp target/aarch64-apple-ios-sim/release/libpatchi_wani_engine.a \
+   ../patchi_wani_flutter/ios/Frameworks/
+```
+
+**For physical device:**
+
+```bash
 cargo build --release --target aarch64-apple-ios
 
 cp target/aarch64-apple-ios/release/libpatchi_wani_engine.a \
    ../patchi_wani_flutter/ios/Frameworks/
 ```
 
-### 5-3. Link the library in Xcode
+### 5-4. Link the library via xcconfig
 
-Open `patchi_wani_flutter/ios/Runner.xcworkspace` in Xcode:
+> **Do NOT use Xcode's Build Phases GUI** — it corrupts `project.pbxproj`.
 
-1. Runner → Build Phases → Link Binary With Libraries
-2. `+` → `Add Other...` → select `ios/Frameworks/libpatchi_wani_engine.a`
-3. Build Settings → Other Linker Flags → add `-lc++`
+`ios/Flutter/Debug.xcconfig` と `ios/Flutter/Release.xcconfig` の両方に以下を追記：
 
-### 5-4. Build the Flutter iOS app
+```
+OTHER_LDFLAGS = $(inherited) -force_load $(SRCROOT)/Frameworks/libpatchi_wani_engine.a -lc++
+```
+
+### 5-5. Run on iOS Simulator
+
+```bash
+# List available simulators
+xcrun simctl list devices available | grep "iOS"
+
+# Boot a simulator (replace <device-id> with the ID shown above)
+xcrun simctl boot <device-id>
+
+# Run the Flutter app
+cd patchi_wani_flutter
+flutter run -d <device-id>
+```
+
+> **Note:** `open -a Simulator` may not work on some macOS versions. Use `xcrun simctl boot` instead.
+
+> **Note:** Do not run `pod install` manually on Xcode 26+ — CocoaPods may fail to parse the project file. Use `flutter run` directly and let Flutter handle pod setup.
+
+### 5-6. Build the Flutter iOS app (release)
 
 ```bash
 cd patchi_wani_flutter
@@ -248,6 +293,51 @@ Pass the device id directly instead of `android`:
 ```bash
 flutter devices          # find the id (e.g. emulator-5554)
 flutter run -d emulator-5554
+```
+
+### `Failed to lookup symbol engine_init`
+
+The Rust library is not linked. Do NOT use Xcode's Build Phases GUI — it corrupts `project.pbxproj`.
+Instead, add the following to both `ios/Flutter/Debug.xcconfig` and `ios/Flutter/Release.xcconfig`:
+
+```
+OTHER_LDFLAGS = $(inherited) -force_load $(SRCROOT)/Frameworks/libpatchi_wani_engine.a -lc++
+```
+
+### `Building for iOS-simulator, but linking in object file built for iOS`
+
+The `.a` was built for a physical device. Rebuild for the simulator target:
+
+```bash
+cd patchi_wani_engine
+cargo build --release --target aarch64-apple-ios-sim
+cp target/aarch64-apple-ios-sim/release/libpatchi_wani_engine.a \
+   ../patchi_wani_flutter/ios/Frameworks/
+```
+
+### iOS Simulator not detected by `flutter devices`
+
+```bash
+# Find available simulators
+xcrun simctl list devices available | grep "iOS"
+
+# Boot the simulator manually
+xcrun simctl boot <device-id>
+```
+
+### CocoaPods parse error on Xcode 26+
+
+CocoaPods may fail with `Found additional characters after parsing the root plist object`.
+Do not run `pod install` manually — use `flutter run` directly and let Flutter handle pod setup.
+
+If `project.pbxproj` is corrupted, regenerate the iOS platform (`.a` is preserved separately):
+
+```bash
+cp ios/Frameworks/libpatchi_wani_engine.a /tmp/
+rm -rf ios
+flutter create . --platforms ios
+mkdir -p ios/Frameworks
+cp /tmp/libpatchi_wani_engine.a ios/Frameworks/
 ```
 
 ### Rust tests fail
