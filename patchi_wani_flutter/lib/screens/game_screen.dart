@@ -4,6 +4,7 @@
 // start overlay, and game-over overlay via GameController.
 
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -33,6 +34,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Future<void> _loadHitSound() async {
+    if (kIsWeb) return; // audioplayers is not supported on web
     try {
       // Preload assets/audio/hit.mp3 — replace with any sound file you like.
       await _player.setSource(AssetSource('audio/hit.mp3'));
@@ -43,6 +45,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Future<void> _playHit() async {
+    if (kIsWeb) return; // no audio on web
     if (_hasHitSound) {
       await _player.seek(Duration.zero);
       unawaited(_player.resume());
