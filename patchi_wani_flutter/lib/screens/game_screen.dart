@@ -202,9 +202,7 @@ class _HUD extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isWarning = controller.timeLeft <= 10;
-    return Positioned(
-      top: 0, left: 0, right: 0,
-      child: Container(
+    return Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
         color: Colors.black.withValues(alpha: 0.7),
         child: Row(
@@ -232,7 +230,6 @@ class _HUD extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
