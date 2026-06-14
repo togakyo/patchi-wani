@@ -50,16 +50,22 @@ If `cargo test` passes, the Rust side is working correctly.
 ```bash
 cd patchi_wani_flutter
 
+# Generate platform files (first time only)
+flutter create . --platforms android   # add --platforms ios on macOS if needed
+
 # List connected devices and simulators
 flutter devices
 
-# Run (select a device or pass -d <device-id>)
-flutter run
+# Run on a specific device (use the device id shown by flutter devices)
+flutter run -d emulator-5554   # example — replace with your device id
 ```
 
 > **Note:** At this stage the Rust `.so` / `.a` library does not exist yet,
 > so `EngineFFI` will throw an `UnsupportedError`.
 > Complete Step 4 to build the library, then restart the app.
+
+> **Web is not supported.** This project uses `dart:ffi` to call the Rust engine,
+> which is incompatible with the web platform. Use an Android emulator or iOS simulator.
 
 ---
 
@@ -76,9 +82,12 @@ SDK Manager → SDK Tools → NDK (Side by side) → Apply
 ### 4-2. Set the NDK path environment variable
 
 ```bash
-# Add to ~/.zshrc or ~/.bashrc
-export ANDROID_NDK_HOME="$HOME/Library/Android/sdk/ndk/25.2.9519653"  # macOS example
-# Linux: export ANDROID_NDK_HOME="$HOME/Android/Sdk/ndk/25.2.9519653"
+# Check which NDK version was installed
+ls ~/Library/Android/sdk/ndk/   # e.g. 26.1.10909125
+
+# Add to ~/.zshrc or ~/.bashrc (replace the version number with the output above)
+export ANDROID_NDK_HOME="$HOME/Library/Android/sdk/ndk/26.1.10909125"  # macOS example
+# Linux: export ANDROID_NDK_HOME="$HOME/Android/Sdk/ndk/26.1.10909125"
 
 source ~/.zshrc
 ```
@@ -221,6 +230,24 @@ cargo install cargo-ndk
 ```bash
 cd patchi_wani_flutter
 flutter pub get
+```
+
+### `Build failed due to use of deleted Android v1 embedding`
+
+Android platform files are missing. Run the following to generate them:
+
+```bash
+cd patchi_wani_flutter
+flutter create . --platforms android
+```
+
+### `flutter run -d android` — No supported devices found
+
+Pass the device id directly instead of `android`:
+
+```bash
+flutter devices          # find the id (e.g. emulator-5554)
+flutter run -d emulator-5554
 ```
 
 ### Rust tests fail
