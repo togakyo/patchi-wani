@@ -1,23 +1,23 @@
 // lib/scratch/block_model.dart
 //
-// Scratch ライクなブロックのデータモデルと GameRule JSON への変換。
+// Data model for Scratch-style blocks and conversion to GameRule JSON.
 
 import 'dart:convert';
 
 // ─────────────────────────────────────────────
-//  ブロック種別
+//  Block types
 // ─────────────────────────────────────────────
 enum BlockType {
-  // 制御ブロック
-  onGameStart,   // 「ゲームかいしたら」
-  waitSeconds,   // 「○びょうまつ」
-  // 動作ブロック
-  spawnTarget,   // 「ターゲットをだす」
-  playSound,     // 「おとをならす」
-  // 数値ブロック
-  setDuration,   // 「じかんを○びょうにする」
-  setTargetSize, // 「サイズを○にする」
-  setThreshold,  // 「レベルアップを○てんにする」
+  // Control blocks
+  onGameStart,   // "when game starts"
+  waitSeconds,   // "wait N seconds"
+  // Action blocks
+  spawnTarget,   // "show target"
+  playSound,     // "play sound"
+  // Value blocks
+  setDuration,   // "set duration to N seconds"
+  setTargetSize, // "set target size to N"
+  setThreshold,  // "level up at N points"
 }
 
 // ─────────────────────────────────────────────
@@ -25,11 +25,11 @@ enum BlockType {
 // ─────────────────────────────────────────────
 class Block {
   final BlockType type;
-  final Map<String, dynamic> params; // ブロックのパラメータ
+  final Map<String, dynamic> params; // block parameters
 
   const Block({required this.type, this.params = const {}});
 
-  // 表示ラベル（UI に見せるテキスト）
+  // Display label shown in the block editor UI
   String get label {
     switch (type) {
       case BlockType.onGameStart:
@@ -54,14 +54,14 @@ class Block {
     switch (type) {
       case BlockType.onGameStart:
       case BlockType.waitSeconds:
-        return 0xFF7F77DD; // 紫：制御
+        return 0xFF7F77DD; // purple: control
       case BlockType.spawnTarget:
       case BlockType.playSound:
-        return 0xFF1D9E75; // 緑：動作
+        return 0xFF1D9E75; // green: action
       case BlockType.setDuration:
       case BlockType.setTargetSize:
       case BlockType.setThreshold:
-        return 0xFFBA7517; // 黄：数値
+        return 0xFFBA7517; // amber: value
     }
   }
 
@@ -69,7 +69,7 @@ class Block {
 }
 
 // ─────────────────────────────────────────────
-//  BlockProgram — ブロックのリストと GameRule 変換
+//  BlockProgram — ordered list of blocks + conversion to GameRule JSON
 // ─────────────────────────────────────────────
 class BlockProgram {
   final List<Block> blocks;
@@ -89,7 +89,7 @@ class BlockProgram {
     ]);
   }
 
-  /// Scratch ブロックリストを Rust エンジンが受け取る GameRule JSON に変換する
+  /// Converts the block list to a GameRule JSON string for the Rust engine.
   String toGameRuleJson() {
     int    duration    = 60;
     int    appearMs    = 1500;

@@ -1,7 +1,7 @@
 // lib/game/game_controller.dart
 //
-// Flutter UI と Rust エンジンを仲介するコントローラ。
-// ChangeNotifier を使い、状態変化を各 Widget に通知する。
+// Controller that mediates between the Flutter UI and the Rust engine.
+// Uses ChangeNotifier to propagate state changes to widgets.
 
 import 'dart:async';
 import 'dart:math';
@@ -19,7 +19,7 @@ class GameController extends ChangeNotifier {
   final _ffi = EngineFFI.instance;
   final _rng = Random();
 
-  // ── 公開状態 ──────────────────────────────────────
+  // ── Public state ──────────────────────────────────
   GamePhase   get phase      => _phase;
   int         get score      => _score;
   int         get timeLeft   => _timeLeft;
@@ -28,7 +28,7 @@ class GameController extends ChangeNotifier {
   bool        get targetVisible => _targetVisible;
   TargetPosition? get targetPos => _targetPos;
 
-  // ── 内部状態 ──────────────────────────────────────
+  // ── Internal state ───────────────────────────────
   GamePhase      _phase         = GamePhase.idle;
   int            _score         = 0;
   int            _timeLeft      = 60;
@@ -41,7 +41,7 @@ class GameController extends ChangeNotifier {
   Timer? _timerHide;
   Timer? _timerSpawn;
 
-  // ── ゲーム開始 ────────────────────────────────────
+  // ── Start game ───────────────────────────────────
   void startGame({String? ruleJson}) {
     _timerTick?.cancel();
     _timerHide?.cancel();
@@ -52,7 +52,7 @@ class GameController extends ChangeNotifier {
 
     _syncFromEngine();
 
-    // 1 秒ごとにエンジンをティック
+    // Tick the engine once per second
     _timerTick = Timer.periodic(const Duration(seconds: 1), (_) {
       _ffi.tick();
       _syncFromEngine();
@@ -69,7 +69,7 @@ class GameController extends ChangeNotifier {
     _scheduleNextTarget(delay: const Duration(milliseconds: 300));
   }
 
-  // ── ターゲットタップ ──────────────────────────────
+  // ── Target tap ───────────────────────────────────
   void onHit(Size arenaSize) {
     if (_phase != GamePhase.playing) return;
     _ffi.onHit();
@@ -80,7 +80,7 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── ターゲットのスポーン管理 ─────────────────────
+  // ── Target spawn management ──────────────────────
   Size? _arenaSize;
 
   void setArenaSize(Size size) => _arenaSize = size;
@@ -94,7 +94,7 @@ class GameController extends ChangeNotifier {
       _targetVisible = false;
       notifyListeners();
 
-      // ランダム待機 400〜800ms
+      // Random delay 400–800 ms before the next target appears
       final waitMs = 400 + _rng.nextInt(400);
       _timerSpawn = Timer(Duration(milliseconds: waitMs), () {
         if (_phase != GamePhase.playing) return;
@@ -117,7 +117,7 @@ class GameController extends ChangeNotifier {
     _targetVisible = true;
     notifyListeners();
 
-    // 1500ms 後に自動消滅
+    // Auto-hide after 1500 ms
     _timerHide = Timer(const Duration(milliseconds: 1500), () {
       if (_phase != GamePhase.playing) return;
       _targetVisible = false;
@@ -126,7 +126,7 @@ class GameController extends ChangeNotifier {
     });
   }
 
-  // ── エンジン状態を Dart 側へ同期 ────────────────
+  // ── Sync state from engine ───────────────────────
   void _syncFromEngine() {
     _phase      = _ffi.getPhase();
     _score      = _ffi.getScore();
@@ -136,16 +136,16 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── 難易度ラベル ──────────────────────────────────
+  // ── Difficulty label ─────────────────────────────
   String get difficultyLabel {
     switch (_difficulty) {
-      case 0: return 'ふつう';
-      case 1: return 'むずかしい';
-      default: return 'すごい！';
+      case 0: return 'かんたん';   // easy
+      case 1: return 'むずかしい'; // normal
+      default: return 'すごい！';  // hard
     }
   }
 
-  // ── 結果メッセージ ────────────────────────────────
+  // ── Result message ───────────────────────────────
   ({String emoji, String title, String msg}) get resultInfo {
     if (_score >= 25) return (emoji: '🏆', title: 'すごい！チャンピオン！', msg: 'めちゃくちゃ上手だよ！！');
     if (_score >= 15) return (emoji: '🌟', title: 'よくできました！',       msg: 'どんどん上手になってるよ！');

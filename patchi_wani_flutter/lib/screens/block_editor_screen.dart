@@ -1,7 +1,7 @@
 // lib/screens/block_editor_screen.dart
 //
-// 子どもがドラッグ&ドロップでブロックを並べ替え、
-// ゲームルールをカスタマイズする画面。
+// Screen where children drag-and-drop blocks to
+// customize game rules.
 
 import 'package:flutter/material.dart';
 import '../scratch/block_model.dart';
@@ -23,7 +23,7 @@ class BlockEditorScreen extends StatefulWidget {
 class _BlockEditorScreenState extends State<BlockEditorScreen> {
   late List<Block> _blocks;
 
-  // パレットに並べる利用可能ブロック
+  // Available blocks shown in the palette
   final _palette = const [
     Block(type: BlockType.setDuration,   params: {'secs': 60}),
     Block(type: BlockType.setDuration,   params: {'secs': 30}),
@@ -60,12 +60,12 @@ class _BlockEditorScreenState extends State<BlockEditorScreen> {
       ),
       body: Row(
         children: [
-          // 左：プログラムエリア（ドロップ先）
+          // Left: program area (drop target)
           Expanded(
             flex: 3,
             child: _buildProgramArea(),
           ),
-          // 右：ブロックパレット
+          // Right: block palette
           Container(
             width: 180,
             color: const Color(0xFF161B22),
@@ -154,7 +154,7 @@ class _BlockEditorScreenState extends State<BlockEditorScreen> {
 }
 
 // ─────────────────────────────────────────────
-//  部品 Widget
+//  Internal widgets
 // ─────────────────────────────────────────────
 class _BlockChip extends StatelessWidget {
   final Block   block;

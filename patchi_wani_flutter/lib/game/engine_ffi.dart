@@ -1,14 +1,14 @@
 // lib/game/engine_ffi.dart
 //
-// Rust の patchi_wani_engine 共有ライブラリを dart:ffi で呼び出すブリッジ。
-// すべての外部シンボルはここに集約し、他の Dart コードはこのクラスのみを参照する。
+// dart:ffi bridge to the patchi_wani_engine Rust shared library.
+// All external symbols are resolved here; other Dart code only imports EngineFFI.
 
 import 'dart:ffi';
 import 'dart:io';
 import 'package:ffi/ffi.dart';
 
 // ─────────────────────────────────────────────
-//  C ABI シグネチャの宣言
+//  C ABI type signatures
 // ─────────────────────────────────────────────
 
 // int engine_init(const char* rule_json)
@@ -39,14 +39,14 @@ typedef _FreeStringC    = Void Function(Pointer<Utf8>);
 typedef _FreeStringDart = void  Function(Pointer<Utf8>);
 
 // ─────────────────────────────────────────────
-//  共有ライブラリのロード
+//  Load the shared library
 // ─────────────────────────────────────────────
 DynamicLibrary _openLib() {
   if (Platform.isAndroid) {
     return DynamicLibrary.open('libpatchi_wani_engine.so');
   }
   if (Platform.isIOS) {
-    // iOS は静的リンク（Runner.app に組み込み済み）
+    // iOS uses static linking (bundled inside Runner.app)
     return DynamicLibrary.process();
   }
   if (Platform.isMacOS) {
@@ -62,7 +62,7 @@ DynamicLibrary _openLib() {
 }
 
 // ─────────────────────────────────────────────
-//  EngineFFI — シングルトン
+//  EngineFFI — singleton wrapper
 // ─────────────────────────────────────────────
 class EngineFFI {
   EngineFFI._() {
@@ -95,8 +95,8 @@ class EngineFFI {
   late final _CharPtrRetFunc   _getRuleJson;
   late final _FreeStringDart   _freeString;
 
-  /// エンジン初期化。ruleJson が null なら Rust 側のデフォルト値を使用。
-  /// 戻り値: 0=成功, -1=JSONパースエラー
+  /// Initialise the engine. Pass null to use Rust defaults.
+  /// Returns 0 on success, -1 on JSON parse error.
   int init({String? ruleJson}) {
     if (ruleJson == null) {
       return _init(nullptr.cast<Utf8>());
@@ -113,15 +113,15 @@ class EngineFFI {
   int  getScore()    => _getScore();
   int  getTimeLeft() => _getTimeLeft();
 
-  /// フェーズ: 0=Idle, 1=Playing, 2=GameOver
+  /// Phase: 0=Idle, 1=Playing, 2=GameOver
   GamePhase getPhase() => GamePhase.values[_getPhase()];
 
   double getTargetSize()  => _getSize();
 
-  /// 難易度: 0=ふつう, 1=むずかしい, 2=すごい
+  /// Difficulty: 0=easy, 1=normal, 2=hard
   int    getDifficulty()  => _getDiff();
 
-  /// 現在の GameRule JSON を返す
+  /// Returns the current GameRule as a JSON string.
   String getRuleJson() {
     final ptr = _getRuleJson();
     final json = ptr.toDartString();
@@ -130,5 +130,5 @@ class EngineFFI {
   }
 }
 
-/// Rust Phase と対応する Dart 列挙型
+/// Dart enum mirroring the Rust Phase enum.
 enum GamePhase { idle, playing, gameOver }

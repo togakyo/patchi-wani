@@ -1,47 +1,48 @@
-# コントリビュートガイド
+# Contributing
 
-パッチワニプロジェクトへの貢献を歓迎します。
+Contributions are welcome — thank you for your interest in Patchi-Wani!
 
-## バグ報告・機能提案
+## Bug reports and feature requests
 
-[GitHub Issues](https://github.com/<your-username>/patchi-wani/issues) からお気軽にどうぞ。
+Please use [GitHub Issues](https://github.com/<your-username>/patchi-wani/issues).
 
-バグ報告の際は以下を含めると助かります。
+When reporting a bug, please include:
 
-- OS・Flutter バージョン・対象デバイス
-- 再現手順
-- 期待する動作と実際の動作
+- OS, Flutter version, and target device
+- Steps to reproduce
+- Expected behavior vs. actual behavior
 
-## プルリクエストの手順
+## Pull request workflow
 
 ```bash
-# 1. フォーク後、ローカルにクローン
+# 1. Fork and clone
 git clone https://github.com/<your-username>/patchi-wani.git
 cd patchi-wani
 
-# 2. セットアップ
+# 2. Set up the environment
 chmod +x setup.sh && ./setup.sh
 
-# 3. ブランチを切る（例）
+# 3. Create a branch
 git checkout -b fix/target-spawn-timing
 
-# 4. 変更・テスト
-cd patchi_wani_engine && cargo test   # Rust テスト
-cd ../patchi_wani_flutter && flutter test  # Flutter テスト
+# 4. Make changes and run tests
+cd patchi_wani_engine && cargo test
+cd ../patchi_wani_flutter && flutter test
 
-# 5. コミットしてプッシュ
-git add . && git commit -m "fix: ターゲットのスポーン間隔を修正"
+# 5. Commit and push
+git add .
+git commit -m "fix: correct target spawn interval"
 git push origin fix/target-spawn-timing
 ```
 
-## コーディング規約
+## Code style
 
-- Rust: `cargo fmt` と `cargo clippy` を通してください
-- Dart: `dart format` を通してください
-- コミットメッセージは [Conventional Commits](https://www.conventionalcommits.org/ja/) に準拠してください（`fix:` `feat:` `docs:` など）
+- Rust: run `cargo fmt` and `cargo clippy` before committing
+- Dart: run `dart format` before committing
+- Commit messages should follow [Conventional Commits](https://www.conventionalcommits.org/) (`fix:`, `feat:`, `docs:`, etc.)
 
-## 注意事項
+## Important notes
 
-- 著作権のある画像・音声素材はリポジトリに含めないでください
-- 個人情報（録音した声など）を誤ってコミットしないよう `.gitignore` を確認してください
-- 医療的な有効性に関する主張は慎重に。本アプリはあくまで治療の補助ツールです
+- Do not include copyrighted images or audio files in the repository
+- Do not accidentally commit personal recordings — check `.gitignore` before pushing
+- Do not add claims about medical effectiveness in code or documentation

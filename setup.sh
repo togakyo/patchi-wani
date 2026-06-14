@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # =====================================================
-#  setup.sh — 開発環境のセットアップ（初回のみ実行）
+#  setup.sh — First-time development environment setup
 #
-#  対応OS: macOS (Homebrew), Ubuntu/Debian
-#  所要時間: 15〜30分（ダウンロード速度による）
+#  Supported OS: macOS (Homebrew), Ubuntu/Debian
+#  Estimated time: 15–30 minutes depending on download speed
 # =====================================================
 set -euo pipefail
 
@@ -16,112 +16,112 @@ OS="$(uname -s)"
 log "OS: $OS"
 
 # ─────────────────────────────────────────────
-#  1. Rust のインストール
+#  1. Install Rust
 # ─────────────────────────────────────────────
 if ! command -v rustc &>/dev/null; then
-  log "Rust をインストール中..."
+  log "Installing Rust..."
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
   # shellcheck disable=SC1090
   source "$HOME/.cargo/env"
-  log "Rust インストール完了: $(rustc --version)"
+  log "Rust installed: $(rustc --version)"
 else
-  log "Rust 確認済み: $(rustc --version)"
+  log "Rust already installed: $(rustc --version)"
 fi
 
 # ─────────────────────────────────────────────
-#  2. クロスコンパイルターゲットの追加
+#  2. Add cross-compilation targets
 # ─────────────────────────────────────────────
-log "Rust クロスコンパイルターゲットを追加..."
-rustup target add aarch64-linux-android   # Android (arm64)
-rustup target add x86_64-linux-android    # Android (x86_64 エミュレータ)
-rustup target add aarch64-apple-ios 2>/dev/null || warn "iOS ターゲットは macOS でのみ追加可能"
+log "Adding Rust cross-compilation targets..."
+rustup target add aarch64-linux-android   # Android arm64
+rustup target add x86_64-linux-android    # Android x86_64 emulator
+rustup target add aarch64-apple-ios 2>/dev/null || warn "iOS target can only be added on macOS"
 
 # ─────────────────────────────────────────────
-#  3. Android NDK セットアップ（cargo-ndk）
+#  3. Android NDK setup (cargo-ndk)
 # ─────────────────────────────────────────────
 if ! cargo ndk --version &>/dev/null 2>&1; then
-  log "cargo-ndk をインストール中..."
+  log "Installing cargo-ndk..."
   cargo install cargo-ndk
 fi
 log "cargo-ndk: $(cargo ndk --version)"
 
 # ─────────────────────────────────────────────
-#  4. Flutter のインストール
+#  4. Install Flutter
 # ─────────────────────────────────────────────
 if ! command -v flutter &>/dev/null; then
-  log "Flutter をインストール中..."
+  log "Installing Flutter..."
   if [[ "$OS" == "Darwin" ]]; then
-    # macOS: Homebrew 経由
+    # macOS: via Homebrew
     if ! command -v brew &>/dev/null; then
-      err "Homebrew が見つかりません。https://brew.sh を参照してインストールしてください"
+      err "Homebrew not found. Install it from https://brew.sh"
     fi
     brew install --cask flutter
   elif [[ "$OS" == "Linux" ]]; then
-    # Linux: snap 経由（Ubuntu 推奨）
+    # Linux: via snap (Ubuntu recommended)
     if command -v snap &>/dev/null; then
       sudo snap install flutter --classic
     else
-      # snap がない場合は手動インストール案内
-      warn "snap が見つかりません。以下を手動で実行してください:"
+      # snap not found — show manual instructions
+      warn "snap not found. Run the following manually:"
       warn "  git clone https://github.com/flutter/flutter.git ~/flutter"
       warn "  export PATH=\"\$PATH:\$HOME/flutter/bin\""
       warn "  flutter doctor"
-      warn "インストール後に再度 setup.sh を実行してください"
+      warn "Then re-run setup.sh"
       exit 1
     fi
   fi
 else
-  log "Flutter 確認済み: $(flutter --version | head -1)"
+  log "Flutter already installed: $(flutter --version | head -1)"
 fi
 
 # ─────────────────────────────────────────────
-#  5. Flutter の依存関係インストール
+#  5. Fetch Flutter packages
 # ─────────────────────────────────────────────
 FLUTTER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/patchi_wani_flutter"
-log "Flutter パッケージを取得中..."
+log "Fetching Flutter packages..."
 cd "$FLUTTER_DIR"
 flutter pub get
-log "Flutter パッケージ取得完了"
+log "Flutter packages ready"
 
 # ─────────────────────────────────────────────
-#  6. Android NDK のパス確認（任意）
+#  6. Verify Android NDK path (optional)
 # ─────────────────────────────────────────────
-log "Android SDK の確認..."
+log "Checking Android SDK..."
 if [[ -z "${ANDROID_NDK_HOME:-}" ]]; then
-  warn "ANDROID_NDK_HOME が未設定です。Android ビルドには以下を設定してください:"
+  warn "ANDROID_NDK_HOME is not set. For Android builds, add this to your shell profile:"
   warn "  export ANDROID_NDK_HOME=\$HOME/Android/Sdk/ndk/<version>"
-  warn "  または ~/.cargo/config.toml に NDK ツールチェーンのパスを記入してください"
-  warn "  詳細は SETUP.md の「Android クロスコンパイル」を参照"
+  warn "  Or set the NDK linker path in ~/.cargo/config.toml"
+  warn "  See SETUP.md Step 4 for details"
 else
   log "ANDROID_NDK_HOME=$ANDROID_NDK_HOME"
 fi
 
 # ─────────────────────────────────────────────
-#  7. Rust エンジンのテスト実行（動作確認）
+#  7. Run Rust unit tests (smoke check)
 # ─────────────────────────────────────────────
 ENGINE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/patchi_wani_engine"
-log "Rust エンジンのテストを実行中..."
+log "Running Rust engine tests..."
 cd "$ENGINE_DIR"
 cargo test
-log "テスト通過！"
+log "All tests passed!"
 
 # ─────────────────────────────────────────────
-#  完了
+#  Done
 # ─────────────────────────────────────────────
 echo ""
 log "========================================"
-log "  セットアップ完了！"
+log "  Setup complete!"
 log "========================================"
 echo ""
-echo "  次のステップ:"
-echo "  1. Rust エンジンをビルド:"
+echo "  Next steps:"
+echo "  1. Build the Rust engine:"
 echo "       cd patchi_wani_engine && cargo build --release"
 echo ""
-echo "  2. Flutter アプリをデバイスで実行:"
+echo "  2. Run the Flutter app on a device:"
 echo "       cd patchi_wani_flutter && flutter run"
 echo ""
-echo "  3. 一括ビルド（APK など）:"
+echo "  3. One-command build (APK etc.):"
 echo "       chmod +x build_all.sh"
 echo "       ./build_all.sh android"
 echo ""
-echo "  詳細は SETUP.md を参照してください。"
+echo "  See SETUP.md for full instructions."

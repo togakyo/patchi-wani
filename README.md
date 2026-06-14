@@ -1,170 +1,166 @@
-# 🐊 パッチワニを捕まえろ！
+# 🐊 Patchi-Wani
 
-**弱視治療中のお子さん（3〜6歳）向け、アイパッチ訓練ゲームです。**
+**A tap game designed to make eye patch wearing time more enjoyable for young children.**
 
-画面に現れるワニをすばやくタップして、楽しみながら**注視訓練・手眼協調運動**を行います。
-アイパッチの時間を「特別な変身タイム」に変えることを目指しています。
+Tap the crocodile as it appears on screen. The game runs for 60 seconds and is designed to be picked up and played in short sessions.
 
-> ⚠️ **本アプリは治療の補助ツールです。必ず眼科医の指導のもとでご使用ください。**
+> ⚠️ **This app is a personal hobby project, not a medical device. It is not intended to diagnose, treat, or prevent any condition. Please follow your doctor's guidance for your child's eye care.**
 
 ---
 
-## スクリーンショット
+## Screenshots
 
-<!-- スクリーンショットが用意できたら以下を差し替えてください -->
+<!-- Replace with actual screenshots when available -->
 ```
-[スタート画面]     [ゲーム画面]       [ブロックエディタ]   [結果画面]
+[Start screen]     [Game screen]      [Block editor]      [Result screen]
   🐊               🎯               🟪🟩🟨              🏆
-  パッチワニを      ━━ 12点 ━━       ブロックで           よくできました！
-  捕まえろ！        のこり 42秒       ルールを変えよう      15 てん
+  Patchi-Wani!     ━━ 12 pts ━━     Customize rules      Well done!
+  Catch me!        42 sec left       with blocks          15 points
 ```
 
 ---
 
-## 特徴
+## Features
 
-- **60秒の短時間設計** — 幼児の集中力とアイパッチ導入のハードルを考慮
-- **自動難易度調整** — スコアに応じてターゲットが小さくなり、より高い注視を促す
-- **Scratch風ブロックエディタ** — お子さん自身がルールをカスタマイズできる
-- **親御さんの声に差し替え可能** — 効果音を録音した声に変更できる設計
-- **高コントラスト設計** — 弱視の視覚刺激に配慮した配色（背景 `#0D1117`、ターゲット `#FF3B30`）
+- **60-second sessions** — short enough to hold a young child's attention
+- **Auto difficulty scaling** — target shrinks as score increases
+- **Scratch-style block editor** — children can customize game rules by dragging blocks
+- **Replaceable sound effects** — swap in a parent's recorded voice
+- **High-contrast color scheme** — dark background `#0D1117`, vivid red target `#FF3B30`
 
 ---
 
-## アーキテクチャ
+## Architecture
 
 ```
 Flutter (FE)  ←─ dart:ffi ─→  Rust Engine (BE)
      │                               │
      └── Scratch Block Editor        └── GameRule JSON
-         ブロック → JSON → Rust           ゲームロジック・当たり判定
+         Blocks → JSON → Rust            Game loop · scoring · difficulty
 ```
 
-| レイヤー | 技術 | 役割 |
-|--------|------|------|
-| フロントエンド | Flutter (Dart) | UI・タッチ操作・ブロックエディタ |
-| ブリッジ | `dart:ffi` | Flutter ↔ Rust 間の C ABI 呼び出し |
-| バックエンド | Rust | ゲームループ・スコア管理・難易度計算 |
-| データ | JSON / SQLite | ルール設定・訓練ログ |
+| Layer | Tech | Role |
+|-------|------|------|
+| Frontend | Flutter (Dart) | UI, touch input, block editor |
+| Bridge | `dart:ffi` | C ABI calls between Flutter and Rust |
+| Backend | Rust | Game loop, score management, difficulty scaling |
+| Data | JSON / SQLite | Rule config, play log |
 
 ---
 
-## 必要な環境
+## Requirements
 
-| ツール | 最低バージョン | 用途 |
-|--------|------------|------|
-| Rust | 1.77+ | ゲームエンジン（BE） |
-| Flutter | 3.22+ | UI（FE） |
-| Android Studio | 最新版 | Android ビルド・エミュレータ |
-| Xcode | 15+ | iOS ビルド（macOS のみ） |
-| Android NDK | r25c+ | Rust → Android クロスコンパイル |
+| Tool | Min version | Purpose |
+|------|-------------|---------|
+| Rust | 1.77+ | Game engine (BE) |
+| Flutter | 3.22+ | UI (FE) |
+| Android Studio | Latest | Android build & emulator |
+| Xcode | 15+ | iOS build (macOS only) |
+| Android NDK | r25c+ | Rust → Android cross-compilation |
 
 ---
 
-## クイックスタート
+## Quick start
 
 ```bash
 git clone https://github.com/<your-username>/patchi-wani.git
 cd patchi-wani
 
-# 1. 環境セットアップ（初回のみ・約15〜30分）
+# 1. Install dependencies (first time only, ~15–30 min)
 chmod +x setup.sh && ./setup.sh
 
-# 2. Rust エンジンのテスト確認
+# 2. Verify the Rust engine
 cd patchi_wani_engine && cargo test && cd ..
 
-# 3. Flutter アプリ起動（シミュレータ）
+# 3. Run the Flutter app on a simulator
 cd patchi_wani_flutter && flutter run
 ```
 
-詳細なビルド手順（Android APK・iOS）は **[SETUP.md](./SETUP.md)** を参照してください。
+For full build instructions (Android APK, iOS) see **[SETUP.md](./SETUP.md)**.
 
 ---
 
-## リポジトリ構成
+## Repository layout
 
 ```
 patchi-wani/
-├── patchi_wani_engine/       # 🦀 Rust ゲームエンジン
+├── patchi_wani_engine/       # 🦀 Rust game engine
 │   ├── Cargo.toml
-│   └── src/lib.rs            # C ABI 公開 + ゲームロジック + ユニットテスト
+│   └── src/lib.rs            # C ABI exports + game logic + unit tests
 │
-├── patchi_wani_flutter/      # 🐦 Flutter アプリ
+├── patchi_wani_flutter/      # 🐦 Flutter app
 │   ├── lib/
-│   │   ├── game/             # FFI ブリッジ・ゲームコントローラ
-│   │   ├── scratch/          # Scratch ブロック定義・JSON 変換
-│   │   └── screens/          # ゲーム画面・ブロックエディタ画面
+│   │   ├── game/             # FFI bridge, game controller
+│   │   ├── scratch/          # Block definitions, JSON conversion
+│   │   └── screens/          # Game screen, block editor screen
 │   └── assets/
-│       ├── audio/            # 効果音（ここに mp3 を置く）
-│       └── images/           # キャラクター画像（ここに置く）
+│       ├── audio/            # Sound files (place .mp3 files here)
+│       └── images/           # Character images (place files here)
 │
-├── setup.sh                  # 環境セットアップスクリプト
-├── build_all.sh              # 一括ビルドスクリプト
-├── SETUP.md                  # 詳細ビルド手順
-├── CONTRIBUTING.md           # コントリビュートガイド
+├── setup.sh                  # Environment setup script
+├── build_all.sh              # One-command build script
+├── SETUP.md                  # Detailed build instructions
+├── CONTRIBUTING.md           # Contribution guide
 └── LICENSE                   # MIT License
 ```
 
 ---
 
-## カスタマイズ（親御さん向け）
+## Customization
 
-### ワニを別のキャラクターに変える
+### Change the target character
 
-`patchi_wani_flutter/lib/screens/game_screen.dart` の `_Target` ウィジェット内の絵文字を変更します。
+Edit the emoji in `patchi_wani_flutter/lib/screens/game_screen.dart`, inside the `_Target` widget:
 
 ```dart
-// 変更前
+// Before
 child: Text('🐊', style: TextStyle(fontSize: size * 0.44)),
 
-// 変更後（例：恐竜に）
+// After (example: dinosaur)
 child: Text('🦖', style: TextStyle(fontSize: size * 0.44)),
 ```
 
-画像ファイルを使う場合は `assets/images/` に置いて `Image.asset()` に変更してください。
+To use an image file instead, place it in `assets/images/` and switch to `Image.asset()`.
 
-### 親御さんの声を効果音にする
+### Replace sound effects with a parent's voice
 
-1. 「すごい！」「やったね！」などを録音して `assets/audio/hit.mp3` として保存
-2. 「よくできました！」などを録音して `assets/audio/fanfare.mp3` として保存
-3. `game_screen.dart` の `// CUSTOMIZE` コメント箇所を以下のように変更：
+1. Record a short clip (e.g. "Great job!") and save it as `assets/audio/hit.mp3`
+2. Record a longer clip for the end of game and save as `assets/audio/fanfare.mp3`
+3. Update the `// CUSTOMIZE` section in `game_screen.dart`:
 
 ```dart
-// audioplayers パッケージを使用
 final player = AudioPlayer();
 await player.play(AssetSource('audio/hit.mp3'));
 ```
 
-### ブロックでゲームルールを変える
+### Customize game rules with blocks
 
-アプリ起動後、スタート画面の **「⚙ ルールをかえる」** ボタンからブロックエディタを開けます。
-ドラッグ＆ドロップでブロックを並べ替えるだけでゲーム時間・難易度しきい値・ターゲットサイズを変更できます。
-
----
-
-## 今後の拡張予定
-
-- [ ] **追従モード** — ターゲットが画面を横断・縦断して動くモード（追従性眼球運動の訓練）
-- [ ] **図地分離モード** — 背景にノイズを加えてターゲットを見つけにくくするモード
-- [ ] **訓練ログ** — 日々のスコアをグラフで確認できる機能（SQLite 実装済み）
-- [ ] **iOS / Android 向けビルド自動化** — GitHub Actions による CI
+Tap **"⚙ ルールをかえる"** on the start screen to open the block editor. Drag and drop blocks to change game duration, difficulty thresholds, and target sizes.
 
 ---
 
-## コントリビュート
+## Roadmap
 
-バグ報告・機能提案は [Issues](https://github.com/<your-username>/patchi-wani/issues) へ。
-プルリクエストも歓迎です。詳細は [CONTRIBUTING.md](./CONTRIBUTING.md) を参照してください。
+- [ ] **Tracking mode** — target moves across the screen
+- [ ] **Figure-ground mode** — noisy background makes the target harder to spot
+- [ ] **Play log** — chart daily scores (SQLite already wired up)
+- [ ] **CI** — GitHub Actions for Android/iOS builds
 
 ---
 
-## ライセンス
+## Contributing
+
+Bug reports and feature requests are welcome via [Issues](https://github.com/<your-username>/patchi-wani/issues).
+Pull requests are also welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+---
+
+## License
 
 [MIT License](./LICENSE)
 
 ---
 
-## 免責事項
+## Disclaimer
 
-本アプリは弱視治療の**補助ツール**であり、医療機器ではありません。
-治療方針については必ず担当の眼科医にご相談ください。
+This is a personal hobby project. It is not a medical device and is not intended to diagnose, treat, cure, or prevent any disease or condition. Always follow your doctor's advice regarding your child's eye health.

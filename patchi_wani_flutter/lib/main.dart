@@ -6,7 +6,7 @@ import 'screens/game_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  // 横向き固定（タブレット推奨レイアウト）
+  // Lock to landscape (recommended for tablet play)
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,

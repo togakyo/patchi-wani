@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # =====================================================
-#  build_all.sh — Rust エンジン + Flutter アプリ一括ビルド
+#  build_all.sh — Build the Rust engine and Flutter app in one command
 #
-#  使い方:
+#  Usage:
 #    chmod +x build_all.sh
 #    ./build_all.sh [android|ios|linux|all]
 #
-#  前提: setup.sh を先に実行してください
+#  Run setup.sh first if this is your first time.
 # =====================================================
 set -euo pipefail
 
@@ -20,7 +20,7 @@ log()  { echo -e "${GREEN}[build]${NC} $*"; }
 warn() { echo -e "${YELLOW}[warn]${NC}  $*"; }
 
 # ─────────────────────────────────────────────
-#  Rust エンジンのビルド（共通）
+#  Rust engine builds
 # ─────────────────────────────────────────────
 build_rust_android() {
   log "Rust → Android (arm64-v8a)"
@@ -53,7 +53,7 @@ build_rust_linux() {
 }
 
 # ─────────────────────────────────────────────
-#  Flutter のビルド
+#  Flutter builds
 # ─────────────────────────────────────────────
 build_flutter_android() {
   log "Flutter → Android APK"
@@ -77,13 +77,13 @@ build_flutter_linux() {
 }
 
 # ─────────────────────────────────────────────
-#  Rust ユニットテスト
+#  Rust unit tests
 # ─────────────────────────────────────────────
 run_tests() {
-  log "Rust ユニットテスト実行"
+  log "Running Rust unit tests"
   cd "$ENGINE_DIR"
   cargo test
-  log "  全テスト通過"
+  log "  All tests passed"
 }
 
 # ─────────────────────────────────────────────
@@ -107,7 +107,7 @@ case "$TARGET" in
     ;;
   all)
     run_tests
-    warn "all を指定した場合、現在の OS に応じたターゲットのみビルドします"
+    warn "'all' builds targets for the current OS only"
     if [[ "$OSTYPE" == "darwin"* ]]; then
       build_rust_ios
       build_rust_android
@@ -117,13 +117,13 @@ case "$TARGET" in
       build_rust_linux
       build_flutter_linux
     else
-      warn "Windows は手動で build_all.sh android または ios を実行してください"
+      warn "On Windows, run build_all.sh android or ios manually"
     fi
     ;;
   *)
-    echo "使い方: $0 [android|ios|linux|all]"
+    echo "Usage: $0 [android|ios|linux|all]"
     exit 1
     ;;
 esac
 
-log "ビルド完了！"
+log "Build complete!"

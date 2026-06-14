@@ -1,7 +1,7 @@
 // lib/screens/game_screen.dart
 //
-// ゲームプレイ画面。GameController を ChangeNotifierProvider で提供し、
-// HUD・ゲームエリア・スタート/ゲームオーバー画面を管理する。
+// Main game screen. Manages the HUD, game arena,
+// start overlay, and game-over overlay via GameController.
 
 import 'package:flutter/material.dart';
 import '../game/game_controller.dart';
@@ -47,21 +47,21 @@ class _GameScreenState extends State<GameScreen> {
         builder: (context, _) {
           return Stack(
             children: [
-              // ── ゲームエリア ───────────────────────
+              // ── Game arena ────────────────────────
               _GameArena(controller: _controller),
 
               // ── HUD ───────────────────────────────
               if (_controller.phase == GamePhase.playing)
                 _HUD(controller: _controller),
 
-              // ── スタート画面 ─────────────────────
+              // ── Start overlay ─────────────────────
               if (_controller.phase == GamePhase.idle)
                 _StartScreen(
                   onStart: _startGame,
                   onEdit:  _openEditor,
                 ),
 
-              // ── ゲームオーバー画面 ───────────────
+              // ── Game-over overlay ─────────────────
               if (_controller.phase == GamePhase.gameOver)
                 _GameOverScreen(
                   controller: _controller,
@@ -77,7 +77,7 @@ class _GameScreenState extends State<GameScreen> {
 }
 
 // ─────────────────────────────────────────────
-//  ゲームエリア（ターゲット表示）
+//  Game arena (target display)
 // ─────────────────────────────────────────────
 class _GameArena extends StatelessWidget {
   final GameController controller;
@@ -86,7 +86,7 @@ class _GameArena extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
-      // アリアサイズをコントローラに伝える
+      // Pass the arena size to the controller
       final size = Size(constraints.maxWidth, constraints.maxHeight);
       controller.setArenaSize(size);
 
@@ -113,7 +113,7 @@ class _GameArena extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-//  ターゲット Widget
+//  Target widget
 // ─────────────────────────────────────────────
 class _Target extends StatelessWidget {
   final double size;
@@ -136,7 +136,7 @@ class _Target extends StatelessWidget {
         ],
       ),
       child: Center(
-        // CUSTOMIZE: この絵文字をお子さんの好きなものに変更できます
+        // CUSTOMIZE: replace this emoji with any character your child likes
         child: Text('🐊', style: TextStyle(fontSize: size * 0.44)),
       ),
     );
@@ -144,7 +144,7 @@ class _Target extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-//  HUD
+//  HUD (heads-up display)
 // ─────────────────────────────────────────────
 class _HUD extends StatelessWidget {
   final GameController controller;
@@ -213,7 +213,7 @@ class _HudBox extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-//  スタート画面
+//  Start screen overlay
 // ─────────────────────────────────────────────
 class _StartScreen extends StatelessWidget {
   final VoidCallback onStart;
@@ -249,7 +249,7 @@ class _StartScreen extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-//  ゲームオーバー画面
+//  Game-over screen overlay
 // ─────────────────────────────────────────────
 class _GameOverScreen extends StatelessWidget {
   final GameController controller;
@@ -294,7 +294,7 @@ class _GameOverScreen extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-//  共通部品
+//  Shared widgets
 // ─────────────────────────────────────────────
 class _OverlayScreen extends StatelessWidget {
   final List<Widget> children;

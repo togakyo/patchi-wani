@@ -1,121 +1,121 @@
-# SETUP.md — 詳細ビルド手順
+# SETUP.md — Detailed Build Instructions
 
-> クイックスタートは [README.md](./README.md) を参照してください。
+> For a quick start, see [README.md](./README.md).
 
-## 必要な環境
+## Requirements
 
-| ツール         | 最低バージョン | 用途                        |
-|--------------|------------|---------------------------|
-| Rust          | 1.77+      | ゲームエンジン（BE）          |
-| Flutter       | 3.22+      | UI（FE）                   |
-| Android Studio| 最新版      | Android ビルド・エミュレータ   |
-| Xcode         | 15+        | iOS ビルド（macOS のみ）     |
-| Android NDK   | r25c+      | Rust → Android クロスコンパイル |
+| Tool | Min version | Purpose |
+|------|-------------|---------|
+| Rust | 1.77+ | Game engine (BE) |
+| Flutter | 3.22+ | UI (FE) |
+| Android Studio | Latest | Android build & emulator |
+| Xcode | 15+ | iOS build (macOS only) |
+| Android NDK | r25c+ | Rust → Android cross-compilation |
 
 ---
 
-## 手順 1：自動セットアップ（推奨）
+## Step 1 — Automated setup (recommended)
 
 ```bash
-cd patchi_wani
+cd patchi-wani
 chmod +x setup.sh
 ./setup.sh
 ```
 
-これだけで Rust / Flutter のインストールとパッケージ取得、Rust テストの実行まで完了します。
+This installs Rust and Flutter, fetches packages, and runs the Rust unit tests.
 
 ---
 
-## 手順 2：Rust エンジン単体の動作確認
+## Step 2 — Verify the Rust engine
 
 ```bash
 cd patchi_wani_engine
 
-# テスト実行（ネイティブ）
+# Run unit tests
 cargo test
 
-# デバッグビルド
+# Debug build
 cargo build
 
-# リリースビルド
+# Release build
 cargo build --release
 ```
 
-`cargo test` が通れば Rust 側のロジックは正常です。
+If `cargo test` passes, the Rust side is working correctly.
 
 ---
 
-## 手順 3：Flutter アプリをシミュレータで起動
+## Step 3 — Run the Flutter app on a simulator
 
 ```bash
 cd patchi_wani_flutter
 
-# 接続済みデバイス / シミュレータ確認
+# List connected devices and simulators
 flutter devices
 
-# 起動（デバイスを選択するか -d で指定）
+# Run (select a device or pass -d <device-id>)
 flutter run
 ```
 
-> **注意**: この段階では Rust の `.so` / `.a` ファイルがないため、
-> `EngineFFI` の呼び出しで UnsupportedError が発生します。
-> 次の手順でライブラリをビルドしてから再起動してください。
+> **Note:** At this stage the Rust `.so` / `.a` library does not exist yet,
+> so `EngineFFI` will throw an `UnsupportedError`.
+> Complete Step 4 to build the library, then restart the app.
 
 ---
 
-## 手順 4：Android 向けクロスコンパイル
+## Step 4 — Android cross-compilation
 
-### 4-1. Android NDK のインストール
+### 4-1. Install the Android NDK
 
-Android Studio を開き：
+Open Android Studio:
 
 ```
-SDK Manager → SDK Tools → NDK (Side by side) にチェック → Apply
+SDK Manager → SDK Tools → NDK (Side by side) → Apply
 ```
 
-### 4-2. NDK パスを環境変数に設定
+### 4-2. Set the NDK path environment variable
 
 ```bash
-# ~/.zshrc または ~/.bashrc に追記
-export ANDROID_NDK_HOME="$HOME/Library/Android/sdk/ndk/25.2.9519653"  # macOS 例
+# Add to ~/.zshrc or ~/.bashrc
+export ANDROID_NDK_HOME="$HOME/Library/Android/sdk/ndk/25.2.9519653"  # macOS example
 # Linux: export ANDROID_NDK_HOME="$HOME/Android/Sdk/ndk/25.2.9519653"
 
 source ~/.zshrc
 ```
 
-### 4-3. Rust → Android ライブラリのビルド
+### 4-3. Build the Rust library for Android
 
 ```bash
 cd patchi_wani_engine
 
-# cargo-ndk を使う（推奨・自動でリンカーを解決）
+# Use cargo-ndk (recommended — resolves the linker automatically)
 cargo ndk -t arm64-v8a build --release
 
-# ビルドされた .so を Flutter プロジェクトにコピー
+# Copy the .so into the Flutter project
 cp target/aarch64-linux-android/release/libpatchi_wani_engine.so \
    ../patchi_wani_flutter/android/app/src/main/jniLibs/arm64-v8a/
 ```
 
-### 4-4. Flutter → Android APK のビルド
+### 4-4. Build the Flutter APK
 
 ```bash
 cd ../patchi_wani_flutter
 flutter build apk --release
 ```
 
-出力: `build/app/outputs/flutter-apk/app-release.apk`
+Output: `build/app/outputs/flutter-apk/app-release.apk`
 
 ---
 
-## 手順 5：iOS 向けビルド（macOS のみ）
+## Step 5 — iOS build (macOS only)
 
-### 5-1. iOS ターゲットの追加
+### 5-1. Add the iOS target
 
 ```bash
 rustup target add aarch64-apple-ios
 ```
 
-### 5-2. Rust → iOS スタティックライブラリのビルド
+### 5-2. Build the Rust static library for iOS
 
 ```bash
 cd patchi_wani_engine
@@ -125,15 +125,15 @@ cp target/aarch64-apple-ios/release/libpatchi_wani_engine.a \
    ../patchi_wani_flutter/ios/Frameworks/
 ```
 
-### 5-3. Xcode プロジェクトへのリンク設定
+### 5-3. Link the library in Xcode
 
-Xcode で `patchi_wani_flutter/ios/Runner.xcworkspace` を開き：
+Open `patchi_wani_flutter/ios/Runner.xcworkspace` in Xcode:
 
 1. Runner → Build Phases → Link Binary With Libraries
-2. `+` → `Add Other...` → `ios/Frameworks/libpatchi_wani_engine.a` を追加
-3. Build Settings → Other Linker Flags に `-lc++` を追加
+2. `+` → `Add Other...` → select `ios/Frameworks/libpatchi_wani_engine.a`
+3. Build Settings → Other Linker Flags → add `-lc++`
 
-### 5-4. Flutter → iOS ビルド
+### 5-4. Build the Flutter iOS app
 
 ```bash
 cd patchi_wani_flutter
@@ -142,102 +142,96 @@ flutter build ios --release --no-codesign
 
 ---
 
-## 手順 6：一括ビルド（ショートカット）
+## Step 6 — One-command builds
 
 ```bash
-cd patchi_wani
+cd patchi-wani
 chmod +x build_all.sh
 
-# Android のみ
-./build_all.sh android
-
-# iOS のみ（macOS）
-./build_all.sh ios
-
-# Linux デスクトップのみ
-./build_all.sh linux
+./build_all.sh android   # Android APK
+./build_all.sh ios       # iOS (macOS only)
+./build_all.sh linux     # Linux desktop
 ```
 
 ---
 
-## フォルダ構成
+## Repository layout
 
 ```
-patchi_wani/
+patchi-wani/
 │
-├── patchi_wani_engine/          # Rust ゲームエンジン（BE）
+├── patchi_wani_engine/          # Rust game engine (BE)
 │   ├── Cargo.toml
 │   ├── .cargo/
-│   │   └── config.toml       # クロスコンパイル リンカー設定
+│   │   └── config.toml          # Cross-compilation linker config (template)
 │   └── src/
-│       └── lib.rs            # C ABI 公開関数 + ゲームロジック
+│       └── lib.rs               # C ABI exports + game logic
 │
-├── patchi_wani_flutter/         # Flutter アプリ（FE）
+├── patchi_wani_flutter/         # Flutter app (FE)
 │   ├── pubspec.yaml
 │   ├── assets/
-│   │   ├── audio/            # 効果音・親御さんの声（.mp3）を置く
-│   │   ├── images/           # キャラクター画像を置く
+│   │   ├── audio/               # Place .mp3 sound files here
+│   │   ├── images/              # Place character images here
 │   │   └── game_rule_default.json
 │   ├── android/
 │   │   └── app/src/main/
 │   │       └── jniLibs/
 │   │           └── arm64-v8a/
-│   │               └── libpatchi_wani_engine.so  ← Rust ビルド後に配置
+│   │               └── libpatchi_wani_engine.so  ← copied after Rust build
 │   ├── ios/
 │   │   └── Frameworks/
-│   │       └── libpatchi_wani_engine.a           ← Rust ビルド後に配置
+│   │       └── libpatchi_wani_engine.a           ← copied after Rust build
 │   └── lib/
 │       ├── main.dart
 │       ├── game/
-│       │   ├── engine_ffi.dart    # dart:ffi ブリッジ
+│       │   ├── engine_ffi.dart       # dart:ffi bridge
 │       │   └── game_controller.dart
 │       ├── scratch/
-│       │   └── block_model.dart   # Scratch ブロック定義 + JSON 変換
+│       │   └── block_model.dart      # Block definitions + JSON conversion
 │       └── screens/
 │           ├── game_screen.dart
 │           └── block_editor_screen.dart
 │
-├── setup.sh                  # 初回セットアップスクリプト
-├── build_all.sh              # 一括ビルドスクリプト
-└── SETUP.md                  # このファイル
+├── setup.sh                     # First-time setup script
+├── build_all.sh                 # One-command build script
+└── SETUP.md                     # This file
 ```
 
 ---
 
-## よくあるエラーと対処
+## Troubleshooting
 
-### `DynamicLibrary.open` で `Cannot open shared library` エラー
+### `DynamicLibrary.open` — Cannot open shared library
 
-→ Rust のビルドが完了していないか、`.so` のコピー先が違います。
-手順 4-3 を再確認してください。
+The Rust library has not been built yet, or was copied to the wrong path.
+Re-run Step 4-3 and verify the destination path.
 
-### `engine_init` が -1 を返す
+### `engine_init` returns -1
 
-→ `GameRule.json` のパースエラーです。
-`game_rule_default.json` の JSON が正しいか確認してください。
+JSON parse error in `GameRule`. Check that `game_rule_default.json` is valid JSON.
 
-### `cargo ndk` コマンドが見つからない
+### `cargo ndk` not found
 
 ```bash
 cargo install cargo-ndk
 ```
 
-### Flutter で `ffi` パッケージのエラー
+### Flutter `ffi` package error
 
 ```bash
 cd patchi_wani_flutter
 flutter pub get
 ```
 
-### Rust のテストが失敗する
+### Rust tests fail
 
 ```bash
 cd patchi_wani_engine
-cargo test -- --nocapture  # ログを表示して原因を確認
+cargo test -- --nocapture   # show log output
 ```
 
 ---
 
-## カスタマイズ
+## Customization
 
-キャラクター変更・音声差し替え・ブロックエディタの使い方は [README.md](./README.md#カスタマイズ親御さん向け) を参照してください。
+For character, sound, and block editor customization, see [README.md](./README.md#customization).
