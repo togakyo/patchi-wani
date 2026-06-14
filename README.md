@@ -170,6 +170,6 @@ Pull requests are also welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ---
 
-## Disclaimer
+## License
 
-This is a personal hobby project. It is not a medical device and is not intended to diagnose, treat, cure, or prevent any disease or condition. Always follow your doctor's advice regarding your child's eye health.
+This is a personal hobby project — feel free to use and adapt it.

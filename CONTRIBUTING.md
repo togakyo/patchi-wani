@@ -45,4 +45,4 @@ git push origin fix/target-spawn-timing
 
 - Do not include copyrighted images or audio files in the repository
 - Do not accidentally commit personal recordings — check `.gitignore` before pushing
-- Do not add claims about medical effectiveness in code or documentation
+- Do not make unsubstantiated effectiveness claims in code or documentation
