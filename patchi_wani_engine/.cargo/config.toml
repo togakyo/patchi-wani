@@ -1,0 +1,30 @@
+# patchi_wani_engine/.cargo/config.toml
+#
+# Android クロスコンパイル用のリンカー設定。
+#
+# 【推奨】cargo-ndk を使う場合はこのファイルの編集は不要です:
+#   cargo install cargo-ndk
+#   cargo ndk -t arm64-v8a build --release
+#
+# cargo-ndk を使わず直接ビルドする場合のみ、
+# 以下の "/path/to/..." を実際の NDK パスに書き換えてください。
+#
+# NDK パスの確認方法:
+#   Android Studio → SDK Manager → SDK Tools → NDK のパスをコピー
+#
+# 例:
+#   macOS: /Users/<user>/Library/Android/sdk/ndk/25.2.9519653/toolchains/...
+#   Linux: /home/<user>/Android/Sdk/ndk/25.2.9519653/toolchains/...
+#
+# ⚠️ 絶対パスはコミットしないでください。
+#    このファイルはテンプレートとして使用し、
+#    実際のパス設定は ~/.cargo/config.toml に記述することを推奨します。
+
+[target.aarch64-linux-android]
+linker = "/path/to/android/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang"
+
+[target.x86_64-linux-android]
+linker = "/path/to/android/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android33-clang"
+
+[target.aarch64-apple-ios]
+# iOS は Xcode の clang を使うため通常は設定不要

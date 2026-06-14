@@ -1,0 +1,40 @@
+name: patchi_wani_flutter
+description: 弱視訓練ゲーム「パッチワニを捕まえろ！」
+
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Rust FFI ブリッジ
+  ffi: ^2.1.0
+
+  # JSON 読み書き（GameRule）
+  # （dart:convert は標準ライブラリなので追加不要）
+
+  # 音声再生（親御さんの声 MP3 など）
+  audioplayers: ^6.0.0
+
+  # SQLite（訓練ログ永続化）
+  sqflite: ^2.3.3
+
+  # パス解決ユーティリティ
+  path_provider: ^2.1.3
+  path: ^1.9.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/audio/
+    - assets/images/
+    - assets/game_rule_default.json

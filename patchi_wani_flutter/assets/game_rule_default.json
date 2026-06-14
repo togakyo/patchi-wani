@@ -1,0 +1,7 @@
+{
+  "duration_secs": 60,
+  "appear_ms": 1500,
+  "threshold_1": 10,
+  "threshold_2": 20,
+  "target_sizes": [96.0, 68.0, 50.0]
+}

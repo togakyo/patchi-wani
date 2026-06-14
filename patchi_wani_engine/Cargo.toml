@@ -1,0 +1,18 @@
+[package]
+name    = "patchi_wani_engine"
+version = "0.1.0"
+edition = "2021"
+
+# Flutter/Dart から呼び出す共有ライブラリとしてビルドする
+[lib]
+name      = "patchi_wani_engine"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+# JSON シリアライズ（GameRule.json の読み書き）
+serde       = { version = "1", features = ["derive"] }
+serde_json  = "1"
+
+[profile.release]
+opt-level = 3
+lto       = true

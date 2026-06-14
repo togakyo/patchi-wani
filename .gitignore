@@ -1,0 +1,30 @@
+# ── Rust ────────────────────────────────────────
+patchi_wani_engine/target/
+
+# ── Flutter ─────────────────────────────────────
+patchi_wani_flutter/.dart_tool/
+patchi_wani_flutter/.flutter-plugins
+patchi_wani_flutter/.flutter-plugins-dependencies
+patchi_wani_flutter/build/
+patchi_wani_flutter/.packages
+
+# pubspec.lock はチームで固定したい場合は次の行をコメントアウト
+patchi_wani_flutter/pubspec.lock
+
+# ── ビルド成果物（Rust → Flutter に配置するライブラリ）
+# CI でビルドするためリポジトリには含めない
+patchi_wani_flutter/android/app/src/main/jniLibs/
+patchi_wani_flutter/ios/Frameworks/*.a
+patchi_wani_flutter/linux/lib/*.so
+
+# ── 個人素材（著作権・個人情報に注意）
+# 親御さんが録音した声などは絶対にコミットしないこと
+patchi_wani_flutter/assets/audio/hit.mp3
+patchi_wani_flutter/assets/audio/fanfare.mp3
+
+# ── OS / エディタ ────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
