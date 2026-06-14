@@ -1,10 +1,8 @@
 # 🐊 Patchi-Wani
 
-**A tap game designed to make eye patch wearing time more enjoyable for young children.**
+**A tap game for young children — catch the crocodile before it disappears!**
 
 Tap the crocodile as it appears on screen. The game runs for 60 seconds and is designed to be picked up and played in short sessions.
-
-> ⚠️ **This app is a personal hobby project, not a medical device. It is not intended to diagnose, treat, or prevent any condition. Please follow your doctor's guidance for your child's eye care.**
 
 ---
 
