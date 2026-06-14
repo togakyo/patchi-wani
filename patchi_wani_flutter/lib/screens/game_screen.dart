@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../game/web_beep_interop.dart';
 import '../game/engine.dart';
 import '../game/game_controller.dart';
 import '../scratch/block_model.dart';
@@ -45,7 +46,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Future<void> _playHit() async {
-    if (kIsWeb) return; // no audio on web
+    if (kIsWeb) { playWebBeep(); return; }
     if (_hasHitSound) {
       await _player.seek(Duration.zero);
       unawaited(_player.resume());
