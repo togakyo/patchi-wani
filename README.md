@@ -4,6 +4,8 @@
 
 Tap the crocodile as it appears on screen. The game runs for 60 seconds and is designed to be picked up and played in short sessions.
 
+**[▶ ブラウザでプレイ](https://togakyo.github.io/patchi-wani/)**
+
 ---
 
 ## Screenshots
