@@ -8,11 +8,13 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../data/play_log_db.dart';
 import '../game/web_beep_interop.dart';
 import '../game/engine.dart';
 import '../game/game_controller.dart';
 import '../scratch/block_model.dart';
 import 'block_editor_screen.dart';
+import 'play_log_screen.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -25,6 +27,10 @@ class _GameScreenState extends State<GameScreen> {
   final _controller = GameController();
   BlockProgram _program = BlockProgram.defaultProgram();
 
+  bool _trackingMode     = false;
+  bool _figureGroundMode = false;
+  bool _savedThisGame    = false;
+
   final _player = AudioPlayer();
   bool _hasHitSound = false;
 
@@ -32,6 +38,17 @@ class _GameScreenState extends State<GameScreen> {
   void initState() {
     super.initState();
     _loadHitSound();
+    _controller.addListener(_onControllerChange);
+  }
+
+  void _onControllerChange() {
+    if (_controller.phase == GamePhase.gameOver && !_savedThisGame) {
+      _savedThisGame = true;
+      PlayLogDb.instance.insert(_controller.score);
+    }
+    if (_controller.phase == GamePhase.playing) {
+      _savedThisGame = false;
+    }
   }
 
   Future<void> _loadHitSound() async {
@@ -57,13 +74,18 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   void dispose() {
+    _controller.removeListener(_onControllerChange);
     _player.dispose();
     _controller.dispose();
     super.dispose();
   }
 
   void _startGame() {
-    _controller.startGame(ruleJson: _program.toGameRuleJson());
+    _controller.startGame(
+      ruleJson: _program.toGameRuleJson(),
+      trackingMode: _trackingMode,
+      figureGroundMode: _figureGroundMode,
+    );
   }
 
   void _openEditor() async {
@@ -72,6 +94,12 @@ class _GameScreenState extends State<GameScreen> {
         initialProgram: _program,
         onSave: (p) => setState(() => _program = p),
       ),
+    ));
+  }
+
+  void _openPlayLog() {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => const PlayLogScreen(),
     ));
   }
 
@@ -101,14 +129,22 @@ class _GameScreenState extends State<GameScreen> {
                       _StartScreen(
                         onStart: _startGame,
                         onEdit:  _openEditor,
+                        onViewLog: _openPlayLog,
+                        trackingMode: _trackingMode,
+                        figureGroundMode: _figureGroundMode,
+                        onTrackingChanged: (v) =>
+                            setState(() => _trackingMode = v),
+                        onFigureGroundChanged: (v) =>
+                            setState(() => _figureGroundMode = v),
                       ),
 
                     // ── Game-over overlay ─────────────
                     if (_controller.phase == GamePhase.gameOver)
                       _GameOverScreen(
                         controller: _controller,
-                        onRestart: _startGame,
-                        onEdit:    _openEditor,
+                        onRestart:  _startGame,
+                        onEdit:     _openEditor,
+                        onViewLog:  _openPlayLog,
                       ),
                   ],
                 ),
@@ -132,7 +168,6 @@ class _GameArena extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
-      // Pass the arena size to the controller
       final size = Size(constraints.maxWidth, constraints.maxHeight);
       controller.setArenaSize(size);
 
@@ -141,6 +176,15 @@ class _GameArena extends StatelessWidget {
         child: SizedBox.expand(
           child: Stack(
             children: [
+              // Distractors (figure-ground mode) — rendered below real target
+              if (controller.figureGroundMode && controller.targetVisible)
+                ...controller.distractors.map((pos) => Positioned(
+                      left: pos.x - controller.targetSize / 2,
+                      top:  pos.y - controller.targetSize / 2,
+                      child: _Distractor(size: controller.targetSize),
+                    )),
+
+              // Real tappable target
               if (controller.targetVisible && controller.targetPos != null)
                 Positioned(
                   left: controller.targetPos!.x - controller.targetSize / 2,
@@ -193,6 +237,32 @@ class _Target extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
+//  Distractor widget (figure-ground mode)
+// ─────────────────────────────────────────────
+class _Distractor extends StatelessWidget {
+  final double size;
+  const _Distractor({required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: 0.38,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: const BoxDecoration(
+          color: Color(0xFF882222),
+          shape: BoxShape.circle,
+        ),
+        child: Center(
+          child: Text('🐊', style: TextStyle(fontSize: size * 0.44)),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
 //  HUD (heads-up display)
 // ─────────────────────────────────────────────
 class _HUD extends StatelessWidget {
@@ -209,17 +279,29 @@ class _HUD extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _HudBox(label: 'スコア', value: '${controller.score}'),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFCC00).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                    color: const Color(0xFFFFCC00).withValues(alpha: 0.35)),
-              ),
-              child: Text(controller.difficultyLabel,
-                  style: const TextStyle(
-                      color: Color(0xFFFFCC00), fontSize: 13)),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFCC00).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: const Color(0xFFFFCC00).withValues(alpha: 0.35)),
+                  ),
+                  child: Text(controller.difficultyLabel,
+                      style: const TextStyle(
+                          color: Color(0xFFFFCC00), fontSize: 13)),
+                ),
+                if (controller.trackingMode) ...[
+                  const SizedBox(width: 8),
+                  const _HudBadge(label: '追跡', color: Color(0xFF7F77DD)),
+                ],
+                if (controller.figureGroundMode) ...[
+                  const SizedBox(width: 8),
+                  const _HudBadge(label: '迷彩', color: Color(0xFF00BFAD)),
+                ],
+              ],
             ),
             _HudBox(
               label: 'のこり',
@@ -230,6 +312,26 @@ class _HUD extends StatelessWidget {
             ),
           ],
         ),
+    );
+  }
+}
+
+class _HudBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _HudBadge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Text(label,
+          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -264,7 +366,21 @@ class _HudBox extends StatelessWidget {
 class _StartScreen extends StatelessWidget {
   final VoidCallback onStart;
   final VoidCallback onEdit;
-  const _StartScreen({required this.onStart, required this.onEdit});
+  final VoidCallback onViewLog;
+  final bool trackingMode;
+  final bool figureGroundMode;
+  final ValueChanged<bool> onTrackingChanged;
+  final ValueChanged<bool> onFigureGroundChanged;
+
+  const _StartScreen({
+    required this.onStart,
+    required this.onEdit,
+    required this.onViewLog,
+    required this.trackingMode,
+    required this.figureGroundMode,
+    required this.onTrackingChanged,
+    required this.onFigureGroundChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -281,15 +397,99 @@ class _StartScreen extends StatelessWidget {
         const Text('パッチをつけたら、ゲームスタート！\nパッチワニが出たらすぐタップ！',
             textAlign: TextAlign.center,
             style: TextStyle(color: Color(0xFF8899AA), fontSize: 15, height: 1.7)),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
+        // Mode toggles
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _ModeToggle(
+              label: '追跡モード',
+              icon: '👁',
+              value: trackingMode,
+              onChanged: onTrackingChanged,
+            ),
+            const SizedBox(width: 12),
+            _ModeToggle(
+              label: '迷彩モード',
+              icon: '🎭',
+              value: figureGroundMode,
+              onChanged: onFigureGroundChanged,
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
         _BigButton(label: '▶ スタート！', onTap: onStart),
         const SizedBox(height: 12),
-        TextButton(
-          onPressed: onEdit,
-          child: const Text('⚙ ルールをかえる',
-              style: TextStyle(color: Color(0xFF7F77DD), fontSize: 16)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextButton(
+              onPressed: onEdit,
+              child: const Text('⚙ ルールをかえる',
+                  style: TextStyle(color: Color(0xFF7F77DD), fontSize: 16)),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: onViewLog,
+              child: const Text('📊 きろく',
+                  style: TextStyle(color: Color(0xFF556677), fontSize: 16)),
+            ),
+          ],
         ),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Mode toggle chip
+// ─────────────────────────────────────────────
+class _ModeToggle extends StatelessWidget {
+  final String label;
+  final String icon;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  const _ModeToggle({
+    required this.label,
+    required this.icon,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const activeColor = Color(0xFF7F77DD);
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: value
+              ? activeColor.withValues(alpha: 0.18)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: value
+                ? activeColor
+                : const Color(0xFF334455),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(icon, style: const TextStyle(fontSize: 14)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: value ? activeColor : const Color(0xFF556677),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -301,10 +501,12 @@ class _GameOverScreen extends StatelessWidget {
   final GameController controller;
   final VoidCallback   onRestart;
   final VoidCallback   onEdit;
+  final VoidCallback   onViewLog;
   const _GameOverScreen({
     required this.controller,
     required this.onRestart,
     required this.onEdit,
+    required this.onViewLog,
   });
 
   @override
@@ -329,10 +531,21 @@ class _GameOverScreen extends StatelessWidget {
         const SizedBox(height: 24),
         _BigButton(label: 'もういちど！', onTap: onRestart),
         const SizedBox(height: 12),
-        TextButton(
-          onPressed: onEdit,
-          child: const Text('⚙ ルールをかえる',
-              style: TextStyle(color: Color(0xFF7F77DD), fontSize: 16)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextButton(
+              onPressed: onEdit,
+              child: const Text('⚙ ルールをかえる',
+                  style: TextStyle(color: Color(0xFF7F77DD), fontSize: 16)),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: onViewLog,
+              child: const Text('📊 きろく',
+                  style: TextStyle(color: Color(0xFF556677), fontSize: 16)),
+            ),
+          ],
         ),
       ],
     );
@@ -351,9 +564,11 @@ class _OverlayScreen extends StatelessWidget {
     return Container(
       color: Colors.black.withValues(alpha: 0.95),
       child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: children,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: children,
+          ),
         ),
       ),
     );

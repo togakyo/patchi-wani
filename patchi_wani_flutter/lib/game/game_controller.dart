@@ -19,13 +19,16 @@ class GameController extends ChangeNotifier {
   final _rng = Random();
 
   // ── Public state ──────────────────────────────────
-  GamePhase   get phase      => _phase;
-  int         get score      => _score;
-  int         get timeLeft   => _timeLeft;
-  double      get targetSize => _targetSize;
-  int         get difficulty => _difficulty;
-  bool        get targetVisible => _targetVisible;
-  TargetPosition? get targetPos => _targetPos;
+  GamePhase   get phase          => _phase;
+  int         get score          => _score;
+  int         get timeLeft       => _timeLeft;
+  double      get targetSize     => _targetSize;
+  int         get difficulty     => _difficulty;
+  bool        get targetVisible  => _targetVisible;
+  TargetPosition? get targetPos  => _targetPos;
+  bool        get trackingMode     => _trackingMode;
+  bool        get figureGroundMode => _figureGroundMode;
+  List<TargetPosition> get distractors => List.unmodifiable(_distractors);
 
   // ── Internal state ───────────────────────────────
   GamePhase      _phase         = GamePhase.idle;
@@ -36,15 +39,31 @@ class GameController extends ChangeNotifier {
   bool           _targetVisible = false;
   TargetPosition? _targetPos;
 
+  bool _trackingMode     = false;
+  bool _figureGroundMode = false;
+  List<TargetPosition> _distractors = [];
+  TargetPosition? _moveDestination;
+
   Timer? _timerTick;
   Timer? _timerHide;
   Timer? _timerSpawn;
+  Timer? _timerMove;
 
   // ── Start game ───────────────────────────────────
-  void startGame({String? ruleJson}) {
+  void startGame({
+    String? ruleJson,
+    bool trackingMode = false,
+    bool figureGroundMode = false,
+  }) {
     _timerTick?.cancel();
     _timerHide?.cancel();
     _timerSpawn?.cancel();
+    _timerMove?.cancel();
+
+    _trackingMode     = trackingMode;
+    _figureGroundMode = figureGroundMode;
+    _distractors      = [];
+    _moveDestination  = null;
 
     _ffi.init(ruleJson: ruleJson);
     _ffi.start();
@@ -59,12 +78,22 @@ class GameController extends ChangeNotifier {
         _timerTick?.cancel();
         _timerHide?.cancel();
         _timerSpawn?.cancel();
+        _timerMove?.cancel();
         _targetVisible = false;
+        _distractors   = [];
         notifyListeners();
       }
     });
 
-    // 最初のターゲットを出す
+    // Tracking mode: move the target smoothly at ~20 fps
+    if (_trackingMode) {
+      _timerMove = Timer.periodic(const Duration(milliseconds: 50), (_) {
+        if (_targetVisible && _targetPos != null && _arenaSize != null) {
+          _moveTarget();
+        }
+      });
+    }
+
     _scheduleNextTarget(delay: const Duration(milliseconds: 300));
   }
 
@@ -74,7 +103,9 @@ class GameController extends ChangeNotifier {
     _ffi.onHit();
     _syncFromEngine();
     _timerHide?.cancel();
-    _targetVisible = false;
+    _targetVisible   = false;
+    _distractors     = [];
+    _moveDestination = null;
     _scheduleNextTarget(delay: const Duration(milliseconds: 80));
     notifyListeners();
   }
@@ -111,18 +142,63 @@ class GameController extends ChangeNotifier {
     final rx = margin + _rng.nextDouble() * (size.width  - margin * 2);
     final ry = margin + _rng.nextDouble() * (size.height - margin * 2);
 
-    _targetPos     = TargetPosition(rx, ry);
-    _targetSize    = ts;
-    _targetVisible = true;
+    _targetPos       = TargetPosition(rx, ry);
+    _targetSize      = ts;
+    _moveDestination = null;
+    _targetVisible   = true;
+
+    if (_figureGroundMode) _refreshDistractors(size, margin);
+
     notifyListeners();
 
-    // Auto-hide after 1500 ms
-    _timerHide = Timer(const Duration(milliseconds: 1500), () {
+    // Tracking mode: give a bit more time since the target moves around
+    final hideDuration = _trackingMode
+        ? const Duration(milliseconds: 2500)
+        : const Duration(milliseconds: 1500);
+
+    _timerHide = Timer(hideDuration, () {
       if (_phase != GamePhase.playing) return;
       _targetVisible = false;
+      _distractors   = [];
       notifyListeners();
       _scheduleNextTarget(delay: const Duration(milliseconds: 100));
     });
+  }
+
+  // ── Figure-ground: generate distractor positions ─
+  void _refreshDistractors(Size size, double margin) {
+    _distractors = List.generate(8, (_) => TargetPosition(
+      margin + _rng.nextDouble() * (size.width  - margin * 2),
+      margin + _rng.nextDouble() * (size.height - margin * 2),
+    ));
+  }
+
+  // ── Tracking mode: move target toward destination ─
+  void _moveTarget() {
+    final size = _arenaSize!;
+    final margin = _targetSize / 2 + 12;
+
+    _moveDestination ??= TargetPosition(
+      margin + _rng.nextDouble() * (size.width  - margin * 2),
+      margin + _rng.nextDouble() * (size.height - margin * 2),
+    );
+
+    final dest = _moveDestination!;
+    final dx = dest.x - _targetPos!.x;
+    final dy = dest.y - _targetPos!.y;
+    final dist = sqrt(dx * dx + dy * dy);
+
+    if (dist < 8) {
+      _moveDestination = null;
+      return;
+    }
+
+    const speed = 3.0; // pixels per frame (~60 px/s at 20 fps)
+    _targetPos = TargetPosition(
+      _targetPos!.x + dx / dist * speed,
+      _targetPos!.y + dy / dist * speed,
+    );
+    notifyListeners();
   }
 
   // ── Sync state from engine ───────────────────────
@@ -138,9 +214,9 @@ class GameController extends ChangeNotifier {
   // ── Difficulty label ─────────────────────────────
   String get difficultyLabel {
     switch (_difficulty) {
-      case 0: return 'かんたん';   // easy
-      case 1: return 'むずかしい'; // normal
-      default: return 'すごい！';  // hard
+      case 0: return 'かんたん';
+      case 1: return 'むずかしい';
+      default: return 'すごい！';
     }
   }
 
@@ -157,6 +233,7 @@ class GameController extends ChangeNotifier {
     _timerTick?.cancel();
     _timerHide?.cancel();
     _timerSpawn?.cancel();
+    _timerMove?.cancel();
     super.dispose();
   }
 }

@@ -152,9 +152,9 @@ Tap **"⚙ ルールをかえる"** on the start screen to open the block editor
 
 ## Roadmap
 
-- [ ] **Tracking mode** — target moves across the screen
-- [ ] **Figure-ground mode** — noisy background makes the target harder to spot
-- [ ] **Play log** — chart daily scores (SQLite already wired up)
+- [x] **Tracking mode** — target moves across the screen
+- [x] **Figure-ground mode** — noisy background makes the target harder to spot
+- [x] **Play log** — chart daily scores (SQLite)
 - [ ] **CI** — GitHub Actions for Android/iOS builds
 
 ---
