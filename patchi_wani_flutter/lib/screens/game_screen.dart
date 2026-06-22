@@ -1,9 +1,7 @@
 // lib/screens/game_screen.dart
-//
-// Main game screen. Manages the HUD, game arena,
-// start overlay, and game-over overlay via GameController.
 
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -29,10 +27,14 @@ class _GameScreenState extends State<GameScreen> {
 
   bool _trackingMode     = false;
   bool _figureGroundMode = false;
+  bool _multiTargetMode  = false;
   bool _savedThisGame    = false;
 
   final _player = AudioPlayer();
   bool _hasHitSound = false;
+
+  final _stackKey      = GlobalKey();
+  final _hitEffectKey  = GlobalKey<_HitEffectOverlayState>();
 
   @override
   void initState() {
@@ -52,14 +54,11 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Future<void> _loadHitSound() async {
-    if (kIsWeb) return; // audioplayers is not supported on web
+    if (kIsWeb) return;
     try {
-      // Preload assets/audio/hit.mp3 — replace with any sound file you like.
       await _player.setSource(AssetSource('audio/hit.mp3'));
       setState(() => _hasHitSound = true);
-    } catch (_) {
-      // File not found — will fall back to system click sound.
-    }
+    } catch (_) {}
   }
 
   Future<void> _playHit() async {
@@ -70,6 +69,12 @@ class _GameScreenState extends State<GameScreen> {
     } else {
       unawaited(SystemSound.play(SystemSoundType.click));
     }
+  }
+
+  void _addHitEffect(Offset globalPos) {
+    final box = _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    _hitEffectKey.currentState?.addEffect(box.globalToLocal(globalPos));
   }
 
   @override
@@ -85,6 +90,7 @@ class _GameScreenState extends State<GameScreen> {
       ruleJson: _program.toGameRuleJson(),
       trackingMode: _trackingMode,
       figureGroundMode: _figureGroundMode,
+      multiTargetMode: _multiTargetMode,
     );
   }
 
@@ -107,63 +113,78 @@ class _GameScreenState extends State<GameScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0D1117),
-      body: ListenableBuilder(
-        listenable: _controller,
-        builder: (context, _) {
-          return Column(
-            children: [
-              // ── HUD (playing only) ────────────────
-              if (_controller.phase == GamePhase.playing)
-                _HUD(controller: _controller),
+      body: Stack(
+        key: _stackKey,
+        children: [
+          // ── Main content ───────────────────────────
+          ListenableBuilder(
+            listenable: _controller,
+            builder: (context, _) {
+              return Column(
+                children: [
+                  if (_controller.phase == GamePhase.playing)
+                    _HUD(controller: _controller),
 
-              // ── Game arena + overlays ─────────────
-              // Arena is Expanded so its LayoutBuilder gives the correct
-              // height excluding the HUD — targets never spawn behind it.
-              Expanded(
-                child: Stack(
-                  children: [
-                    _GameArena(controller: _controller, onHitSound: _playHit),
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        _GameArena(
+                          controller: _controller,
+                          onHitSound: _playHit,
+                          onHitEffect: _addHitEffect,
+                        ),
 
-                    // ── Start overlay ─────────────────
-                    if (_controller.phase == GamePhase.idle)
-                      _StartScreen(
-                        onStart: _startGame,
-                        onEdit:  _openEditor,
-                        onViewLog: _openPlayLog,
-                        trackingMode: _trackingMode,
-                        figureGroundMode: _figureGroundMode,
-                        onTrackingChanged: (v) =>
-                            setState(() => _trackingMode = v),
-                        onFigureGroundChanged: (v) =>
-                            setState(() => _figureGroundMode = v),
-                      ),
+                        if (_controller.phase == GamePhase.idle)
+                          _StartScreen(
+                            onStart:   _startGame,
+                            onEdit:    _openEditor,
+                            onViewLog: _openPlayLog,
+                            trackingMode:     _trackingMode,
+                            figureGroundMode: _figureGroundMode,
+                            multiTargetMode:  _multiTargetMode,
+                            onTrackingChanged:     (v) => setState(() => _trackingMode = v),
+                            onFigureGroundChanged: (v) => setState(() => _figureGroundMode = v),
+                            onMultiTargetChanged:  (v) => setState(() => _multiTargetMode = v),
+                          ),
 
-                    // ── Game-over overlay ─────────────
-                    if (_controller.phase == GamePhase.gameOver)
-                      _GameOverScreen(
-                        controller: _controller,
-                        onRestart:  _startGame,
-                        onEdit:     _openEditor,
-                        onViewLog:  _openPlayLog,
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
+                        if (_controller.phase == GamePhase.gameOver)
+                          _GameOverScreen(
+                            controller: _controller,
+                            onRestart:  _startGame,
+                            onEdit:     _openEditor,
+                            onViewLog:  _openPlayLog,
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+
+          // ── Hit effect overlay (fullscreen, non-interactive) ──
+          IgnorePointer(
+            child: _HitEffectOverlay(key: _hitEffectKey),
+          ),
+        ],
       ),
     );
   }
 }
 
 // ─────────────────────────────────────────────
-//  Game arena (target display)
+//  Game arena
 // ─────────────────────────────────────────────
 class _GameArena extends StatelessWidget {
   final GameController controller;
   final VoidCallback onHitSound;
-  const _GameArena({required this.controller, required this.onHitSound});
+  final void Function(Offset globalPos) onHitEffect;
+
+  const _GameArena({
+    required this.controller,
+    required this.onHitSound,
+    required this.onHitEffect,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -176,25 +197,65 @@ class _GameArena extends StatelessWidget {
         child: SizedBox.expand(
           child: Stack(
             children: [
-              // Distractors (figure-ground mode) — rendered below real target
-              if (controller.figureGroundMode && controller.targetVisible)
+              // Figure-ground distractors (below real targets)
+              if (controller.figureGroundMode)
                 ...controller.distractors.map((pos) => Positioned(
                       left: pos.x - controller.targetSize / 2,
                       top:  pos.y - controller.targetSize / 2,
                       child: _Distractor(size: controller.targetSize),
                     )),
 
-              // Real tappable target
-              if (controller.targetVisible && controller.targetPos != null)
+              // Active targets
+              ...controller.activeTargets.map((target) => Positioned(
+                    left: target.pos.x - target.size / 2,
+                    top:  target.pos.y - target.size / 2,
+                    child: GestureDetector(
+                      onTapDown: (details) {
+                        final hit = controller.onHit(target.id, size);
+                        if (hit) {
+                          onHitSound();
+                          onHitEffect(details.globalPosition);
+                        }
+                      },
+                      child: _Target(size: target.size, color: target.color),
+                    ),
+                  )),
+
+              // Multi-target hint: "🔴 あかをタップ！"
+              if (controller.multiTargetMode &&
+                  controller.activeTargets.isNotEmpty)
                 Positioned(
-                  left: controller.targetPos!.x - controller.targetSize / 2,
-                  top:  controller.targetPos!.y - controller.targetSize / 2,
-                  child: GestureDetector(
-                    onTap: () {
-                      controller.onHit(size);
-                      onHitSound();
-                    },
-                    child: _Target(size: controller.targetSize),
+                  top: 10,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 14,
+                            height: 14,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFFF3B30),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('あかをタップ！',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
             ],
@@ -210,7 +271,8 @@ class _GameArena extends StatelessWidget {
 // ─────────────────────────────────────────────
 class _Target extends StatelessWidget {
   final double size;
-  const _Target({required this.size});
+  final Color color;
+  const _Target({required this.size, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -218,11 +280,11 @@ class _Target extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: const Color(0xFFFF3B30),
+        color: color,
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFF3B30).withValues(alpha: 0.5),
+            color: color.withValues(alpha: 0.5),
             blurRadius: 16,
             spreadRadius: 2,
           ),
@@ -263,7 +325,7 @@ class _Distractor extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-//  HUD (heads-up display)
+//  HUD
 // ─────────────────────────────────────────────
 class _HUD extends StatelessWidget {
   final GameController controller;
@@ -273,45 +335,47 @@ class _HUD extends StatelessWidget {
   Widget build(BuildContext context) {
     final isWarning = controller.timeLeft <= 10;
     return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        color: Colors.black.withValues(alpha: 0.7),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _HudBox(label: 'スコア', value: '${controller.score}'),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFCC00).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: const Color(0xFFFFCC00).withValues(alpha: 0.35)),
-                  ),
-                  child: Text(controller.difficultyLabel,
-                      style: const TextStyle(
-                          color: Color(0xFFFFCC00), fontSize: 13)),
-                ),
-                if (controller.trackingMode) ...[
-                  const SizedBox(width: 8),
-                  const _HudBadge(label: '追跡', color: Color(0xFF7F77DD)),
-                ],
-                if (controller.figureGroundMode) ...[
-                  const SizedBox(width: 8),
-                  const _HudBadge(label: '迷彩', color: Color(0xFF00BFAD)),
-                ],
-              ],
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      color: Colors.black.withValues(alpha: 0.7),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _HudBox(label: 'スコア', value: '${controller.score}'),
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFCC00).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                    color: const Color(0xFFFFCC00).withValues(alpha: 0.35)),
+              ),
+              child: Text(controller.difficultyLabel,
+                  style: const TextStyle(
+                      color: Color(0xFFFFCC00), fontSize: 13)),
             ),
-            _HudBox(
-              label: 'のこり',
-              value: '${controller.timeLeft}',
-              valueColor: isWarning
-                  ? const Color(0xFFFF3B30)
-                  : const Color(0xFFFFCC00),
-            ),
-          ],
-        ),
+            if (controller.trackingMode) ...[
+              const SizedBox(width: 8),
+              const _HudBadge(label: '追跡', color: Color(0xFF7F77DD)),
+            ],
+            if (controller.figureGroundMode) ...[
+              const SizedBox(width: 8),
+              const _HudBadge(label: '迷彩', color: Color(0xFF00BFAD)),
+            ],
+            if (controller.multiTargetMode) ...[
+              const SizedBox(width: 8),
+              const _HudBadge(label: 'マルチ', color: Color(0xFFFF9500)),
+            ],
+          ]),
+          _HudBox(
+            label: 'のこり',
+            value: '${controller.timeLeft}',
+            valueColor: isWarning
+                ? const Color(0xFFFF3B30)
+                : const Color(0xFFFFCC00),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -331,7 +395,8 @@ class _HudBadge extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Text(label,
-          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+          style: TextStyle(
+              color: color, fontSize: 11, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -339,7 +404,7 @@ class _HudBadge extends StatelessWidget {
 class _HudBox extends StatelessWidget {
   final String label;
   final String value;
-  final Color  valueColor;
+  final Color valueColor;
   const _HudBox({
     required this.label,
     required this.value,
@@ -351,17 +416,18 @@ class _HudBox extends StatelessWidget {
     return Column(children: [
       Text(label,
           style: const TextStyle(
-              color: Color(0xFF4A90D9), fontSize: 11,
-              letterSpacing: 1.0)),
+              color: Color(0xFF4A90D9), fontSize: 11, letterSpacing: 1.0)),
       Text(value,
           style: TextStyle(
-              color: valueColor, fontSize: 32, fontWeight: FontWeight.w600)),
+              color: valueColor,
+              fontSize: 32,
+              fontWeight: FontWeight.w600)),
     ]);
   }
 }
 
 // ─────────────────────────────────────────────
-//  Start screen overlay
+//  Start screen
 // ─────────────────────────────────────────────
 class _StartScreen extends StatelessWidget {
   final VoidCallback onStart;
@@ -369,8 +435,10 @@ class _StartScreen extends StatelessWidget {
   final VoidCallback onViewLog;
   final bool trackingMode;
   final bool figureGroundMode;
+  final bool multiTargetMode;
   final ValueChanged<bool> onTrackingChanged;
   final ValueChanged<bool> onFigureGroundChanged;
+  final ValueChanged<bool> onMultiTargetChanged;
 
   const _StartScreen({
     required this.onStart,
@@ -378,8 +446,10 @@ class _StartScreen extends StatelessWidget {
     required this.onViewLog,
     required this.trackingMode,
     required this.figureGroundMode,
+    required this.multiTargetMode,
     required this.onTrackingChanged,
     required this.onFigureGroundChanged,
+    required this.onMultiTargetChanged,
   });
 
   @override
@@ -392,28 +462,30 @@ class _StartScreen extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
                 color: Color(0xFFFFCC00),
-                fontSize: 28, fontWeight: FontWeight.w700)),
+                fontSize: 28,
+                fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
         const Text('パッチをつけたら、ゲームスタート！\nパッチワニが出たらすぐタップ！',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF8899AA), fontSize: 15, height: 1.7)),
+            style: TextStyle(
+                color: Color(0xFF8899AA), fontSize: 15, height: 1.7)),
         const SizedBox(height: 16),
-        // Mode toggles
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 10,
+          runSpacing: 8,
           children: [
             _ModeToggle(
-              label: '追跡モード',
-              icon: '👁',
-              value: trackingMode,
-              onChanged: onTrackingChanged,
+              label: '追跡モード', icon: '👁',
+              value: trackingMode, onChanged: onTrackingChanged,
             ),
-            const SizedBox(width: 12),
             _ModeToggle(
-              label: '迷彩モード',
-              icon: '🎭',
-              value: figureGroundMode,
-              onChanged: onFigureGroundChanged,
+              label: '迷彩モード', icon: '🎭',
+              value: figureGroundMode, onChanged: onFigureGroundChanged,
+            ),
+            _ModeToggle(
+              label: 'マルチ', icon: '🔴',
+              value: multiTargetMode, onChanged: onMultiTargetChanged,
             ),
           ],
         ),
@@ -464,14 +536,10 @@ class _ModeToggle extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: value
-              ? activeColor.withValues(alpha: 0.18)
-              : Colors.transparent,
+          color: value ? activeColor.withValues(alpha: 0.18) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: value
-                ? activeColor
-                : const Color(0xFF334455),
+            color: value ? activeColor : const Color(0xFF334455),
           ),
         ),
         child: Row(
@@ -479,14 +547,11 @@ class _ModeToggle extends StatelessWidget {
           children: [
             Text(icon, style: const TextStyle(fontSize: 14)),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: value ? activeColor : const Color(0xFF556677),
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            Text(label,
+                style: TextStyle(
+                    color: value ? activeColor : const Color(0xFF556677),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -495,13 +560,13 @@ class _ModeToggle extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-//  Game-over screen overlay
+//  Game-over screen
 // ─────────────────────────────────────────────
 class _GameOverScreen extends StatelessWidget {
   final GameController controller;
-  final VoidCallback   onRestart;
-  final VoidCallback   onEdit;
-  final VoidCallback   onViewLog;
+  final VoidCallback onRestart;
+  final VoidCallback onEdit;
+  final VoidCallback onViewLog;
   const _GameOverScreen({
     required this.controller,
     required this.onRestart,
@@ -519,15 +584,18 @@ class _GameOverScreen extends StatelessWidget {
         Text(info.title,
             style: const TextStyle(
                 color: Color(0xFFFFCC00),
-                fontSize: 26, fontWeight: FontWeight.w700)),
+                fontSize: 26,
+                fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
         Text('${controller.score} てん',
             style: const TextStyle(
                 color: Color(0xFF00F2FE),
-                fontSize: 52, fontWeight: FontWeight.w700)),
+                fontSize: 52,
+                fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
         Text(info.msg,
-            style: const TextStyle(color: Color(0xFF8899AA), fontSize: 15)),
+            style: const TextStyle(
+                color: Color(0xFF8899AA), fontSize: 15)),
         const SizedBox(height: 24),
         _BigButton(label: 'もういちど！', onTap: onRestart),
         const SizedBox(height: 12),
@@ -553,7 +621,7 @@ class _GameOverScreen extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-//  Shared widgets
+//  Shared overlay / button widgets
 // ─────────────────────────────────────────────
 class _OverlayScreen extends StatelessWidget {
   final List<Widget> children;
@@ -576,7 +644,7 @@ class _OverlayScreen extends StatelessWidget {
 }
 
 class _BigButton extends StatelessWidget {
-  final String       label;
+  final String label;
   final VoidCallback onTap;
   const _BigButton({required this.label, required this.onTap});
 
@@ -592,15 +660,156 @@ class _BigButton extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: const Color(0xFFFF3B30).withValues(alpha: 0.35),
-              blurRadius: 12, spreadRadius: 2,
+              blurRadius: 12,
+              spreadRadius: 2,
             ),
           ],
         ),
         child: Text(label,
             style: const TextStyle(
                 color: Colors.white,
-                fontSize: 20, fontWeight: FontWeight.w700)),
+                fontSize: 20,
+                fontWeight: FontWeight.w700)),
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────
+//  Hit effect overlay
+// ─────────────────────────────────────────────
+
+class _HitEffectData {
+  final Offset center;
+  final List<_Particle> particles;
+  final AnimationController controller;
+  double get t => controller.value;
+
+  _HitEffectData({
+    required this.center,
+    required this.particles,
+    required this.controller,
+  });
+}
+
+class _Particle {
+  final double angle;
+  final double speed;
+  final double radius;
+  final Color color;
+  const _Particle({
+    required this.angle,
+    required this.speed,
+    required this.radius,
+    required this.color,
+  });
+}
+
+class _HitEffectOverlay extends StatefulWidget {
+  const _HitEffectOverlay({super.key});
+
+  @override
+  State<_HitEffectOverlay> createState() => _HitEffectOverlayState();
+}
+
+class _HitEffectOverlayState extends State<_HitEffectOverlay>
+    with TickerProviderStateMixin {
+  final _effects = <_HitEffectData>[];
+  final _rng = Random();
+
+  static const _particleColors = [
+    Color(0xFFFFCC00),
+    Color(0xFFFF9500),
+    Color(0xFFFF3B30),
+    Color(0xFFFFFFFF),
+    Color(0xFF00F2FE),
+  ];
+
+  void addEffect(Offset localPos) {
+    final particles = List.generate(12, (_) => _Particle(
+      angle:  _rng.nextDouble() * 2 * pi,
+      speed:  70 + _rng.nextDouble() * 70,
+      radius: 2.5 + _rng.nextDouble() * 3.5,
+      color:  _particleColors[_rng.nextInt(_particleColors.length)],
+    ));
+
+    final ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    final effect = _HitEffectData(
+        center: localPos, particles: particles, controller: ctrl);
+
+    ctrl.addListener(() => setState(() {}));
+    ctrl.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _effects.remove(effect);
+        ctrl.dispose();
+        if (mounted) setState(() {});
+      }
+    });
+
+    setState(() => _effects.add(effect));
+    ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    for (final e in List.of(_effects)) {
+      e.controller.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_effects.isEmpty) return const SizedBox.shrink();
+    return CustomPaint(
+      painter: _HitEffectPainter(effects: List.of(_effects)),
+      child: const SizedBox.expand(),
+    );
+  }
+}
+
+class _HitEffectPainter extends CustomPainter {
+  final List<_HitEffectData> effects;
+  _HitEffectPainter({required this.effects});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final fx in effects) {
+      final t    = fx.t;
+      final dist = t * (2 - t); // ease-out distance factor
+
+      // Expanding ring
+      canvas.drawCircle(
+        fx.center,
+        58 * dist,
+        Paint()
+          ..color = const Color(0xFFFFCC00)
+              .withValues(alpha: ((1 - t) * 0.65).clamp(0.0, 1.0))
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0,
+      );
+
+      // Particles
+      for (final p in fx.particles) {
+        final px    = fx.center.dx + cos(p.angle) * p.speed * dist;
+        final py    = fx.center.dy + sin(p.angle) * p.speed * dist;
+        final alpha = (1 - t * 1.1).clamp(0.0, 1.0);
+        final pr    = p.radius * (1 - t * 0.4);
+        if (pr <= 0) continue;
+        canvas.drawCircle(
+          Offset(px, py),
+          pr,
+          Paint()
+            ..color = p.color.withValues(alpha: alpha)
+            ..style = PaintingStyle.fill,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_HitEffectPainter old) => true;
 }
